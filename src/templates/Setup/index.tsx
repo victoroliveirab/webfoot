@@ -1,17 +1,59 @@
-import { onMount, type Component } from "solid-js";
+import { onMount, type Component, createSignal, createResource } from "solid-js";
+import { useLocation, useNavigate } from "@solidjs/router";
 
-import Layout from "@webfoot/components/Layout";
 import Button from "@webfoot/components/Button";
+import Layout from "@webfoot/components/Layout";
+import TeamBlock from "@webfoot/components/TeamBlock";
+import bootstrap from "@webfoot/core/db/bootstrap";
+import { GameLoop, Team, Trainer } from "@webfoot/core/models";
 
 const MAX_NUMBER_OF_PLAYERS = 6;
 
+type LocationState = {
+  name: string;
+  year: number;
+};
+
 const Setup: Component = () => {
+  const navigate = useNavigate();
+  const { state } = useLocation<LocationState>();
+  if (!state || !state.name || !state.year) {
+    navigate("/");
+    console.error("Expected state to have name and year, found:", state);
+    return;
+  }
+  const [uiState, setUiState] = createSignal<"create-trainer" | "submit">("create-trainer");
+  const [loadTeam, setLoadTeam] = createSignal(false);
+  const [team] = createResource(loadTeam, async () => {
+    const trainer = await Trainer.getById(1);
+    return Team.getById(trainer.teamId!);
+  });
+
+  const saveName = state.name;
+  const startSeason = state.year;
+
   onMount(() => {
     document.getElementById("player-0")?.focus();
   });
 
-  async function submit() {
-    console.log("submit");
+  async function submitCreation() {
+    const elements = document.querySelectorAll<HTMLInputElement>("input[type='text']");
+    // For now, let's just create one trainer
+    let name = "TRAINER";
+    for (const input of elements) {
+      if (input.value) {
+        name = input.value.trim().toUpperCase();
+        break;
+      }
+    }
+    await bootstrap(saveName, startSeason, [name]);
+    setLoadTeam(true);
+    setUiState("submit");
+  }
+
+  function submitStartGame() {
+    GameLoop.loadSave(saveName, startSeason, 1);
+    navigate("/dashboard");
   }
 
   return (
@@ -19,8 +61,11 @@ const Setup: Component = () => {
       class="w-[480px]"
       title={() => "Jogadores"}
       actions={
-        <Button class="mt-4 style-98 default h-16 px-4 w-auto font-bold" onClick={submit}>
-          Sortear Equipas
+        <Button
+          class="mt-4 style-98 default h-16 px-4 w-auto font-bold"
+          onClick={uiState() === "create-trainer" ? submitCreation : submitStartGame}
+        >
+          {uiState() === "create-trainer" ? "Sortear Equipas" : "Jogar"}
         </Button>
       }
     >
@@ -48,7 +93,13 @@ const Setup: Component = () => {
                 name={`player-${i}`}
               />
             </div>
-            <div role="cell" class="flex-1 bg-indigo-500"></div>
+            <div role="cell" class="flex-1">
+              {i === 0 && team.state === "ready" && (
+                <TeamBlock background={team().background} foreground={team().foreground}>
+                  {team().name}
+                </TeamBlock>
+              )}
+            </div>
           </div>
         ))}
       </div>

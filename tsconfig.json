@@ -26,6 +26,9 @@
       ],
       "@webfoot/models": [
         "./src/core/models/index.ts"
+      ],
+      "@webfoot/utils/*": [
+        "./src/utils/*"
       ]
     }
   }

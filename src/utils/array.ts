@@ -1,3 +1,5 @@
+import { randomInt } from "./math";
+
 /**
  * Shuffle an array using Fisher-Yates algorithm
  * NOTE: this does not shuffle in place
@@ -27,4 +29,8 @@ export function arrayToHashMap<T extends { id: number }>(array: T[]) {
     }),
     {} as Record<T["id"], T>,
   );
+}
+
+export function pickRandom<T>(array: T[]) {
+  return array[randomInt(0, array.length)];
 }
