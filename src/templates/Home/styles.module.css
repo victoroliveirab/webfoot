@@ -1,0 +1,8 @@
+.select {
+  flex: 1;
+  height: unset;
+  background-image: none !important;
+  background-position: initial;
+  padding: 0;
+  box-shadow: unset;
+}

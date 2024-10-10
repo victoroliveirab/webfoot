@@ -17,6 +17,15 @@
     "paths": {
       "@webfoot/components/*": [
         "./src/components/*"
+      ],
+      "@webfoot/core/*": [
+        "./src/core/*"
+      ],
+      "@webfoot/hooks/*": [
+        "./src/hooks/*"
+      ],
+      "@webfoot/models": [
+        "./src/core/models/index.ts"
       ]
     }
   }
