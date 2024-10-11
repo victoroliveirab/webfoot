@@ -20,7 +20,7 @@ const Home: Component = () => {
       await connect({
         name: currentSave,
       });
-      navigate("/dashboard");
+      navigate("/dashboard/1");
     }
   });
 
@@ -35,7 +35,7 @@ const Home: Component = () => {
         name: loadGameName,
       });
       GameLoop.setCurrentSave(loadGameName);
-      navigate("/dashboard");
+      navigate("/dashboard/1");
     } else if (radioChoice === "newgame") {
       const newSaveName = formData.get("newgame-name")?.toString();
       if (!newSaveName || saves()!.includes(newSaveName)) return;

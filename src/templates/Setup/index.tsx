@@ -53,7 +53,7 @@ const Setup: Component = () => {
 
   function submitStartGame() {
     GameLoop.loadSave(saveName, startSeason, 1);
-    navigate("/dashboard");
+    navigate("/dashboard/1");
   }
 
   return (

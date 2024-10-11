@@ -20,7 +20,7 @@ const App = () => (
   <Router>
     <Route path="/" component={Home} />
     <Route path="/about" component={About} />
-    <Route path="/dashboard" component={Dashboard} />
+    <Route path="/dashboard/:id" component={Dashboard} />
     <Route path="/setup" component={Setup} />
     <Route path="*404" component={() => <p>Not found</p>} />
   </Router>
