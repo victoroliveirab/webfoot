@@ -1,29 +1,43 @@
-import { createResource, type Component } from "solid-js";
-import { useNavigate, useParams } from "@solidjs/router";
+import { type Component, useContext, Show } from "solid-js";
 
-import { Team, Trainer } from "@webfoot/core/models";
-import useDBReady from "@webfoot/hooks/useDBReady";
+import Layout from "@webfoot/components/Layout";
+
+import DashboardTableOfPlayers from "./components/TableOfPlayers";
+import Grid from "./components/Grid";
+import NavBar from "./components/NavBar";
+import NextOpponent from "./components/NextOpponent";
+import TabManager from "./components/TabManager";
+import TrainerInfo from "./components/TrainerInfo";
+import ClubProvider, { ClubContext } from "./contexts/club";
+import FixtureProvider, { FixtureContext } from "./contexts/fixture";
+import LayoutProvider from "./contexts/layout";
 
 const Dashboard: Component = () => {
-  const navigate = useNavigate();
-  const { id } = useParams();
-  const dbReady = useDBReady();
+  const club = useContext(ClubContext);
+  const fixture = useContext(FixtureContext);
 
-  const [trainer] = createResource(dbReady, async () => {
-    const trainer = await Trainer.getById(+id);
-    if (!trainer.human) {
-      navigate("/");
-    }
-    return trainer;
-  });
-  const [team] = createResource(trainer, async () => Team.getById(trainer()!.teamId!));
+  const ready = () => club().ready && fixture().ready;
 
   return (
-    <div>
-      <p>Trainer: {trainer()?.name}</p>
-      <p>Team: {team()?.name}</p>
-    </div>
+    <Show when={ready()}>
+      <Layout class="w-full" title={() => club().team!.fullname} menu={<NavBar />}>
+        <Grid>
+          <TrainerInfo />
+          <NextOpponent />
+          <DashboardTableOfPlayers />
+          <TabManager />
+        </Grid>
+      </Layout>
+    </Show>
   );
 };
 
-export default Dashboard;
+export default () => (
+  <ClubProvider>
+    <FixtureProvider>
+      <LayoutProvider>
+        <Dashboard />
+      </LayoutProvider>
+    </FixtureProvider>
+  </ClubProvider>
+);

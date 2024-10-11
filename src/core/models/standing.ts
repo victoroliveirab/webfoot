@@ -7,6 +7,14 @@ class StandingORM extends ORM<Standing["type"], Standing["indexes"]> {
     super(TABLE_NAMES.Standing);
     super.observeNewConnections(this);
   }
+
+  async getTeamStandingByChampionshipId(
+    teamId: Standing["type"]["teamId"],
+    championshipId: Standing["type"]["championshipId"],
+  ) {
+    const standings = await this.getMultipleByIndex("teamId", teamId);
+    return standings.find((standing) => standing.championshipId === championshipId)!;
+  }
 }
 
 export default new StandingORM();

@@ -8,6 +8,7 @@ import type {
   Standing,
   Team,
   TeamBudget,
+  Trainer,
 } from "../db/types";
 
 type Type<T extends { type: unknown }> = Pick<T, "type">["type"];
@@ -21,3 +22,4 @@ export type ISimulationRecord = Type<SimulationRecord>;
 export type IStanding = Type<Standing>;
 export type ITeam = Type<Team>;
 export type ITeamBudget = Type<TeamBudget>;
+export type ITrainer = Type<Trainer>;

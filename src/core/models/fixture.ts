@@ -7,6 +7,14 @@ class FixtureORM extends ORM<Fixture["type"], Fixture["indexes"]> {
     super(TABLE_NAMES.Fixture);
     super.observeNewConnections(this);
   }
+
+  async getFixturesByChampionshipIdAndRound(
+    championshipId: Fixture["type"]["championshipId"],
+    round: Fixture["type"]["round"],
+  ) {
+    const allFixtures = await this.getMultipleByIndex("championshipId", championshipId);
+    return allFixtures.filter((fixture) => fixture.round === round);
+  }
 }
 
 export default new FixtureORM();

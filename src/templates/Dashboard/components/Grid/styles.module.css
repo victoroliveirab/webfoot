@@ -1,0 +1,4 @@
+.dashboard {
+  grid-template-columns: 55% 45%;
+  grid-template-rows: 84px 492px;
+}
