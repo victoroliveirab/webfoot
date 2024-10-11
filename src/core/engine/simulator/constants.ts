@@ -1,0 +1,4 @@
+export const GOAL_PROBABILITY_SCALING_FACTOR = 100.0;
+
+export const RANDOM_FACTOR_MIN = 0.95;
+export const RANDOM_FACTOR_RANGE = 0.1;

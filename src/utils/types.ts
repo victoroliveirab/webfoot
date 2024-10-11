@@ -19,3 +19,5 @@ export type ArrayOfField<WrapperType, Field extends keyof any> = {
       : never
     : never;
 };
+
+export type HashMap<T extends { id: number }> = Record<T["id"], T>;
