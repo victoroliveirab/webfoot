@@ -24,6 +24,22 @@ const defaultObject = {
   suspensionPeriod: 0,
 };
 
+async function decreaseSuspensionPeriods() {
+  const players = await Player.getAll();
+  const promises = [];
+  for (const player of players) {
+    if (player.suspensionPeriod > 0) {
+      promises.push(
+        Player.patch({
+          id: player.id,
+          suspensionPeriod: player.suspensionPeriod - 1,
+        }),
+      );
+    }
+  }
+  await Promise.all(promises);
+}
+
 async function processFixtureOccurances(simulation: Simulator) {
   const impactedPlayers = new Map<IPlayer["id"], UpdateStruct>();
   const suspensionPeriods = new Map<IPlayer["id"], number>();
@@ -183,6 +199,7 @@ async function processStandings(fixtures: IFixture["id"][]) {
 }
 
 export default async function postRoundProcessor(simulations: Simulator[]) {
+  await decreaseSuspensionPeriods();
   const processedFixtures: IFixture["id"][] = [];
   const processedSimulations: ISimulationRecord["id"][] = [];
   for (const simulation of simulations) {
