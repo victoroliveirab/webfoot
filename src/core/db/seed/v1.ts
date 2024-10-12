@@ -2,7 +2,7 @@ import type { Color } from "../types";
 
 export type TeamSeed = {
   name: string;
-  fullname?: string; // make this mandatory later
+  fullname: string;
   base: number;
   foreground: Color;
   background: Color;
@@ -14,6 +14,7 @@ export function brazilianTeams(): TeamSeed[] {
   return [
     {
       name: "Botafogo",
+      fullname: "Botafogo de Futebol e Regatas",
       base: 18,
       foreground: "white",
       background: "black",
@@ -21,24 +22,48 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Palmeiras",
+      fullname: "Sociedade Esportiva Palmeiras",
       base: 18,
       foreground: "white",
       background: "green",
       border: "white",
       trainer: "Abel Ferreira",
     },
-    { name: "Flamengo", base: 18, foreground: "black", background: "red", trainer: "Filipe Luís" },
+    {
+      name: "Flamengo",
+      fullname: "Clube de Regatas Flamengo",
+      base: 18,
+      foreground: "black",
+      background: "red",
+      trainer: "Filipe Luís",
+    },
     {
       name: "Atlético-MG",
+      fullname: "Clube Atlético Mineiro",
       base: 17,
       foreground: "white",
       background: "black",
       trainer: "Gabriel Milito",
     },
-    { name: "São Paulo", base: 16, foreground: "red", background: "white", trainer: "Zubeldia" },
-    { name: "Fortaleza", base: 16, foreground: "blue", background: "red", trainer: "Vojvoda" },
+    {
+      name: "São Paulo",
+      fullname: "São Paulo Futebol Clube",
+      base: 16,
+      foreground: "red",
+      background: "white",
+      trainer: "Zubeldia",
+    },
+    {
+      name: "Fortaleza",
+      fullname: "Fortaleza Esporte Clube",
+      base: 16,
+      foreground: "blue",
+      background: "red",
+      trainer: "Vojvoda",
+    },
     {
       name: "Internacional",
+      fullname: "Sport Club Internacional",
       base: 16,
       foreground: "white",
       background: "red",
@@ -46,6 +71,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Grêmio",
+      fullname: "Grêmio Football Porto Alegrense",
       base: 16,
       foreground: "white",
       background: "darkblue",
@@ -53,6 +79,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Corinthians",
+      fullname: "Sport Club Corinthians Paulista",
       base: 16,
       foreground: "black",
       background: "white",
@@ -60,6 +87,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Fluminense",
+      fullname: "Fluminense Football Club",
       base: 15,
       foreground: "red",
       background: "green",
@@ -68,6 +96,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Cruzeiro",
+      fullname: "Cruzeiro Esporte Clube",
       base: 15,
       foreground: "white",
       background: "darkblue",
@@ -75,15 +104,31 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Athlético",
+      fullname: "Clube Atlhético Paranaense",
       base: 15,
       foreground: "red",
       background: "black",
       trainer: "Lucho González",
     },
-    { name: "Bahia", base: 15, foreground: "red", background: "darkblue", trainer: "Rogério Ceni" },
-    { name: "Vasco", base: 15, foreground: "black", background: "white", trainer: "Rafael Paiva" },
+    {
+      name: "Bahia",
+      fullname: "Esporte Clube Bahia",
+      base: 15,
+      foreground: "red",
+      background: "darkblue",
+      trainer: "Rogério Ceni",
+    },
+    {
+      name: "Vasco",
+      fullname: "Clube de Regatas Vasco da Gama",
+      base: 15,
+      foreground: "black",
+      background: "white",
+      trainer: "Rafael Paiva",
+    },
     {
       name: "Bragantino",
+      fullname: "Red Bull Bragantino",
       base: 14,
       foreground: "red",
       background: "white",
@@ -91,6 +136,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Juventude",
+      fullname: "Esporte Clube Juventude",
       base: 14,
       foreground: "white",
       background: "green",
@@ -99,6 +145,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Criciúma",
+      fullname: "Criciúma Esporte Clube",
       base: 14,
       foreground: "black",
       background: "yellow",
@@ -106,6 +153,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Vitória",
+      fullname: "Esporte Clube Vitória",
       base: 13,
       foreground: "red",
       background: "black",
@@ -113,6 +161,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Cuiabá",
+      fullname: "Cuiabá Esporte Clube",
       base: 13,
       foreground: "yellow",
       background: "green",
@@ -121,6 +170,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Atlético-GO",
+      fullname: "Clube Atlético Goianiense",
       base: 13,
       foreground: "red",
       background: "black",
@@ -128,6 +178,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Santos",
+      fullname: "Santos Futebol Clube",
       base: 13,
       foreground: "black",
       background: "white",
@@ -135,24 +186,48 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Novorizontino",
+      fullname: "Grêmio Novorizontino",
       base: 12,
       foreground: "black",
       background: "yellow",
       trainer: "Eduardo Baptista",
     },
-    { name: "Sport", base: 12, foreground: "black", background: "red", trainer: "Pepa" },
-    { name: "América-MG", base: 12, foreground: "green", background: "black", trainer: "Lisca" },
+    {
+      name: "Sport",
+      fullname: "Sport Club do Recife",
+      base: 12,
+      foreground: "black",
+      background: "red",
+      trainer: "Pepa",
+    },
+    {
+      name: "América-MG",
+      fullname: "América Futebol Clube Mineiro",
+      base: 12,
+      foreground: "green",
+      background: "black",
+      trainer: "Lisca",
+    },
     {
       name: "Coritiba",
+      fullname: "Coritiba Foot Ball Club",
       base: 12,
       foreground: "white",
       background: "green",
       border: "white",
       trainer: "Jorginho",
     },
-    { name: "Ceará", base: 12, foreground: "white", background: "black", trainer: "Leo Condé" },
+    {
+      name: "Ceará",
+      fullname: "Ceará Sport Club",
+      base: 12,
+      foreground: "white",
+      background: "black",
+      trainer: "Leo Condé",
+    },
     {
       name: "Goiás",
+      fullname: "Goiás Esporte Clube",
       base: 12,
       foreground: "white",
       background: "green",
@@ -161,6 +236,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Avaí",
+      fullname: "Avaí Futebol Clube",
       base: 11,
       foreground: "darkblue",
       background: "white",
@@ -168,22 +244,39 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Vila Nova",
+      fullname: "Vila Nova Futebol Clube",
       base: 11,
       foreground: "white",
       background: "red",
       trainer: "Luizinho Lopes",
     },
-    { name: "Mirassol", base: 11, foreground: "green", background: "yellow", trainer: "Mozart" },
+    {
+      name: "Mirassol",
+      fullname: "Mirassol Futebol Clube",
+      base: 11,
+      foreground: "green",
+      background: "yellow",
+      trainer: "Mozart",
+    },
     {
       name: "Operário-PR",
+      fullname: "Operário Ferroviário Esporte Clube",
       base: 10,
       foreground: "black",
       background: "white",
       trainer: "Rafael Guanaes",
     },
-    { name: "Botafogo-SP", base: 10, foreground: "red", background: "white", trainer: "Zanardi" },
+    {
+      name: "Botafogo-SP",
+      fullname: "Botafogo Futebol Clube",
+      base: 10,
+      foreground: "red",
+      background: "white",
+      trainer: "Zanardi",
+    },
     {
       name: "Ituano",
+      fullname: "Ituano Futebol Clube",
       base: 10,
       foreground: "red",
       background: "black",
@@ -191,14 +284,23 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Náutico",
+      fullname: "Clube Náutico Capibaribe",
       base: 10,
       foreground: "red",
       background: "white",
       trainer: "Marquinhos Santos",
     },
-    { name: "CRB", base: 10, foreground: "white", background: "red", trainer: "Hélio dos Anjos" },
+    {
+      name: "CRB",
+      fullname: "Clube de Regatas Brasil",
+      base: 10,
+      foreground: "white",
+      background: "red",
+      trainer: "Hélio dos Anjos",
+    },
     {
       name: "Guarani",
+      fullname: "Guarani Futebol Clube",
       base: 10,
       foreground: "white",
       background: "green",
@@ -207,6 +309,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Ponte Preta",
+      fullname: "Associação Atlética Ponte Preta",
       base: 10,
       foreground: "black",
       background: "white",
@@ -214,6 +317,7 @@ export function brazilianTeams(): TeamSeed[] {
     },
     {
       name: "Chapecoense",
+      fullname: "Associação Chapecoense de Futebol",
       base: 10,
       foreground: "white",
       background: "green",
