@@ -6,16 +6,13 @@ type Props = {
 };
 
 function getColor(time: number) {
-  if (time <= 35) {
+  if (time <= 45) {
     return "blue";
   }
-  if (time <= 45) {
+  if (time <= 90) {
     return "red";
   }
-  if (time <= 80) {
-    return "purple";
-  }
-  return "red";
+  return "purple";
 }
 
 export default function Clock({ radius, time }: Props) {

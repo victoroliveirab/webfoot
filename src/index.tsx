@@ -8,6 +8,7 @@ import About from "./templates/About";
 import Dashboard from "./templates/Dashboard";
 import MatchDay from "./templates/MatchDay";
 import Setup from "./templates/Setup";
+import Standings from "./templates/Standings";
 
 const [root] = document.getElementsByTagName("main");
 
@@ -24,6 +25,7 @@ const App = () => (
     <Route path="/dashboard/:id" component={Dashboard} />
     <Route path="/match-day" component={MatchDay} />
     <Route path="/setup" component={Setup} />
+    <Route path="/standings" component={Standings} />
     <Route path="*404" component={() => <p>Not found</p>} />
   </Router>
 );

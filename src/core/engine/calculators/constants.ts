@@ -24,3 +24,15 @@ export const MORALE_MULTIPLIER = 0.8;
 // Must be greater than 10, which is the greater discipline
 export const DISCIPLINE_THRESHOLD = 11.0;
 export const RED_CARD_THRESHOLD = 0.0005;
+
+export const BASE_TIME_FACTOR = 0.05;
+export const MIN_DAYS_SUSPENSION = 1;
+export const MAX_DAYS_SUSPENSION = 4;
+
+export const COMBINED_FACTOR_MULTIPLIER_MOST_SEVERE = 0.1;
+export const COMBINED_FACTOR_MULTIPLIER_SEVERE = 0.25;
+export const COMBINED_FACTOR_MULTIPLIER_MODERATE = 0.6;
+
+// Must sum 1.0
+export const DISCIPLINE_INFLUENCE_FACTOR = 0.7;
+export const TIME_INFLUENCE_FACTOR = 0.3;

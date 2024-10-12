@@ -1,7 +1,9 @@
 import { useContext, type Component, createSignal, createEffect, For, Show } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 
 import Clock from "@webfoot/components/Clock";
 import Simulator from "@webfoot/core/engine/simulator";
+import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
 import RoundProvider, { RoundContext } from "./contexts/round";
@@ -11,6 +13,7 @@ const FPS = 20;
 const TIMEOUT = 1000 / FPS;
 
 const MatchDay: Component = () => {
+  const navigate = useNavigate();
   const round = useContext(RoundContext);
   const [simulations, setSimulations] = createSignal<SimulationsSignal>({
     clock: 0,
@@ -50,12 +53,19 @@ const MatchDay: Component = () => {
     for (const simulation of fixtureSimulations) simulation.tick();
     if (now >= 90) {
       clearInterval(timer()!);
+      setTimeout(finishRound, 2000);
       return;
     }
     setSimulations({
       clock: now + 1,
       simulations: simulations().simulations,
     });
+  }
+
+  async function finishRound() {
+    const simulationEntities = Object.values(simulations().simulations!);
+    await postRoundProcessor(simulationEntities);
+    navigate("/standings");
   }
 
   const ready = () => round().ready && !!simulations().simulations;
