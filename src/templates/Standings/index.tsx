@@ -23,7 +23,7 @@ const StandingsPage: Component = () => {
 
   return (
     <>
-      <Layout class="w-[800px] h-[480px]" title={() => `${week}a Jornada`}>
+      <Layout class="w-[800px] h-[480px]" title={() => `${week}ª  Jornada`}>
         <Standings year={year} />
       </Layout>
       <Button class="style-98" onClick={submitContinue}>
