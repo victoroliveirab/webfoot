@@ -94,7 +94,10 @@ export type Trainer = ORMBlueprint<
     teamId: ID | null;
     history: {
       description: string;
-      type: "promotion" | "relegation" | "title";
+      season: number;
+      teamId: ID;
+      // TODO: add job_promotion and job_relegation for job changes between two trainers
+      type: "join" | "promotion" | "relegation" | "title";
     }[];
     human: boolean;
   },

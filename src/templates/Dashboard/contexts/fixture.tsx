@@ -1,7 +1,7 @@
 import { type ParentProps, createContext, createResource, useContext } from "solid-js";
 
-import { Fixture, GameLoop, Standing, Team } from "@webfoot/core/models";
-import type { IFixture, IStanding, ITeam } from "@webfoot/core/models/types";
+import { Fixture, GameLoop, Standing, Team, Trainer } from "@webfoot/core/models";
+import type { IFixture, IStanding, ITeam, ITrainer } from "@webfoot/core/models/types";
 import type { Context } from "@webfoot/utils/types";
 
 import { ClubContext } from "./club";
@@ -11,6 +11,7 @@ type Venue = "H" | "A";
 export type IFixtureContext = Context<{
   fixture: IFixture;
   opponent: ITeam;
+  opponentTrainer: ITrainer;
   standings: Record<Venue, IStanding>;
   venue: Venue;
 }>;
@@ -18,6 +19,7 @@ export type IFixtureContext = Context<{
 export const FixtureContext = createContext<IFixtureContext>(() => ({
   fixture: null,
   opponent: null,
+  opponentTrainer: null,
   ready: false as const,
   standings: null,
   venue: null,
@@ -44,6 +46,11 @@ export default function FixtureProvider(props: ParentProps) {
     return Team.getById(opponentId);
   });
 
+  const [opponentTrainer] = createResource(opponent, async () => {
+    const [trainer] = await Trainer.getMultipleByIndex("teamId", opponent()!.id);
+    return trainer;
+  });
+
   const [standings] = createResource(opponent, async () => {
     const teamStanding = await Standing.getTeamStandingByChampionshipId(
       club().team!.id,
@@ -65,6 +72,7 @@ export default function FixtureProvider(props: ParentProps) {
       ? {
           fixture: fixture()!,
           opponent: opponent()!,
+          opponentTrainer: opponentTrainer()!,
           ready: true,
           standings: standings()!,
           venue: venue()!,
@@ -72,6 +80,7 @@ export default function FixtureProvider(props: ParentProps) {
       : {
           fixture: null,
           opponent: null,
+          opponentTrainer: null,
           ready: false,
           standings: null,
           venue: null,

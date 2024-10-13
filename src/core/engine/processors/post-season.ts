@@ -7,6 +7,7 @@ import {
   Standing,
   Team,
   TeamBudget,
+  Trainer,
 } from "@webfoot/core/models";
 import type { IChampionship, IStanding, ITeam } from "@webfoot/core/models/types";
 import { shuffle } from "@webfoot/utils/array";
@@ -43,13 +44,84 @@ export default async function postSeasonProcessor(year: number) {
     ]);
   }
 
+  for (let division = 1; division <= 4; ++division) {
+    const index = division - 1;
+    const [trainerChampion] = await Trainer.getMultipleByIndex("teamId", champions[index]);
+    const historyChampion = trainerChampion.history;
+    historyChampion.push({
+      description: division === 1 ? "VENCEDOR DO CAMPEONATO" : `Vencedor da ${division}ª divisão`,
+      season: year,
+      teamId: trainerChampion.teamId!,
+      type: "title",
+    });
+    console.log({ trainerChampion, historyChampion });
+    await Trainer.patch({
+      id: trainerChampion.id,
+      history: historyChampion,
+    });
+
+    if (division > 1) {
+      const [trainerPromoted] = await Trainer.getMultipleByIndex("teamId", promoted[index][1]);
+      const historyPromoted = trainerPromoted.history;
+      historyPromoted.push({
+        description: `Promovido para a ${division - 1}ª divisão`,
+        season: year,
+        teamId: trainerPromoted.teamId!,
+        type: "promotion",
+      });
+      console.log({ trainerPromoted, historyPromoted });
+      await Trainer.patch({
+        id: trainerPromoted.id,
+        history: historyPromoted,
+      });
+    }
+
+    const [trainerRelegated1] = await Trainer.getMultipleByIndex("teamId", relegated[index][0]);
+    const [trainerRelegated2] = await Trainer.getMultipleByIndex("teamId", relegated[index][1]);
+
+    const trainerRelegated1History = trainerRelegated1.history;
+    trainerRelegated1History.push({
+      description:
+        division === 4
+          ? "Rebaixado para divisão distrital"
+          : `Rebaixado para a ${division + 1}ª divisão`,
+      season: year,
+      teamId: trainerRelegated1.teamId!,
+      type: "relegation",
+    });
+    await Trainer.patch({
+      id: trainerRelegated1.id,
+      history: trainerRelegated1History,
+    });
+
+    const trainerRelegated2History = trainerRelegated2.history;
+    trainerRelegated2History.push({
+      description:
+        division === 4
+          ? "Rebaixado para divisão distrital"
+          : `Rebaixado para a ${division + 1}ª divisão`,
+      season: year,
+      teamId: trainerRelegated1.teamId!,
+      type: "relegation",
+    });
+    await Trainer.patch({
+      id: trainerRelegated2.id,
+      history: trainerRelegated2History,
+    });
+    console.log({
+      trainerRelegated1,
+      trainerRelegated2,
+      trainerRelegated1History,
+      trainerRelegated2History,
+    });
+  }
+
   const movingTeamsIds = [...Object.values(promoted).flat(), ...Object.values(relegated).flat()];
 
   // 4th division
   const old4DivisionChampionship = championships[3];
   const old4DivisionStandings = standingsByChampionshipId[old4DivisionChampionship.id];
   const teamsAvailableToBePromoted = teams.filter(({ championshipId }) => championshipId === null);
-  console.log({ teamsAvailableToBePromoted });
   const promotedTeams = new Set<ITeam["id"]>();
   while (promotedTeams.size < 2) {
     promotedTeams.add(

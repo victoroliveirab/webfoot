@@ -14,6 +14,7 @@ const NavBar = () => {
       setModalBestScorersSeasonOpened,
       setModalCalendarTeamOpened,
       setModalStandingsOpened,
+      setModalTrainerHistoryOpened,
       setOpenedDropdown,
     },
     values: { openedDropdown },
@@ -112,7 +113,7 @@ const NavBar = () => {
   const trainerOptions: DropdownOption[] = [
     {
       label: "História...",
-      onClick: () => console.log("history"),
+      onClick: () => setModalTrainerHistoryOpened(true),
     },
     {
       label: "Gestão de treinadores...",

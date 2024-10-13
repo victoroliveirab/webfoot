@@ -73,7 +73,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
   const teams: ITeam[] = [];
   let count = 0;
   let budgetId = 1;
-  for (const team of scaledTeams) {
+  for (const { trainer, ...team } of scaledTeams) {
     const championshipId = Math.floor(count++ / TEAMS_PER_DIVISION) + 1;
     const currentCash = championshipId <= 4 ? (5 - championshipId) * 2_000_000 : 1_000_000;
     const teamEntity = {
@@ -206,7 +206,13 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
       teamId: team.id,
       human: true,
       name: trainer,
-      history: [],
+      history: [
+        {
+          description: `Ingresso no ${team.name.toUpperCase()}`,
+          season: startSeason,
+          type: "join",
+        },
+      ],
     });
   }
   for (const team of teams) {
