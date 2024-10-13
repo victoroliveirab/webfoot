@@ -104,11 +104,11 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
       year: startSeason,
       earnings: {
         prizes: 0,
-        selledPlayers: 0,
+        soldPlayers: 0,
         tickets: 0,
       },
       spendings: {
-        buyedPlayers: 0,
+        boughtPlayers: 0,
         interest: 0,
         salaries: 0,
         stadium: 0,

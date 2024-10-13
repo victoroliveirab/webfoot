@@ -48,12 +48,12 @@ export type TeamBudget = ORMBlueprint<
     teamId: ID;
     earnings: {
       tickets: number;
-      selledPlayers: number;
+      soldPlayers: number;
       prizes: number;
     };
     spendings: {
       salaries: number;
-      buyedPlayers: number;
+      boughtPlayers: number;
       stadium: number;
       interest: number;
     };

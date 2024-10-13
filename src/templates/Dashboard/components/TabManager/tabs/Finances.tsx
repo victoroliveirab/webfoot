@@ -39,7 +39,7 @@ const Finances = () => {
               </tr>
               <tr>
                 <td>Jogadores vendidos</td>
-                <td class="text-right">{currentYearBudget()!.earnings.selledPlayers}</td>
+                <td class="text-right">{currentYearBudget()!.earnings.soldPlayers}</td>
               </tr>
               <tr>
                 <td>Prêmios</td>
@@ -60,7 +60,7 @@ const Finances = () => {
               </tr>
               <tr>
                 <td>Jogadores comprados</td>
-                <td class="text-right">{currentYearBudget()!.spendings.buyedPlayers}</td>
+                <td class="text-right">{currentYearBudget()!.spendings.boughtPlayers}</td>
               </tr>
               <tr>
                 <td>Bancadas</td>
