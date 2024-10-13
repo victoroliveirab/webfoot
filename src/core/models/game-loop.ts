@@ -22,6 +22,21 @@ export default class GameLoop {
     localStorage.setItem("week", String(week));
   }
 
+  static getMaxNumberOfScorers() {
+    // FIXME: this can be a problem when a save is started in 2024 and loaded in 2025
+    const season = Math.max(this.getYear()! - new Date().getFullYear() + 1, 1);
+    switch (season) {
+      case 1:
+        return 10;
+      case 2:
+        return 20;
+      case 3:
+        return 30;
+      default:
+        return 40;
+    }
+  }
+
   static loadSave(name: string, year: number, week: number) {
     this.setCurrentSave(name);
     this.setYear(year);

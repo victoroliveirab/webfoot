@@ -27,6 +27,9 @@ type ContextBuilder<T> = {
 };
 
 type UnwrapedContext = {
+  modalBestScorersSeasonOpened: boolean;
+  modalCalendarTeamOpened: boolean;
+  modalStandingsOpened: boolean;
   openedDropdown: OpenedDropdown;
   selectedPlayers: DashboardSquad;
   visiblePlayer: IPlayer | null;
@@ -39,12 +42,18 @@ const defaultHandler = () => null;
 
 export const LayoutContext = createContext<ILayoutContext>({
   handlers: {
+    setModalBestScorersSeasonOpened: defaultHandler,
+    setModalCalendarTeamOpened: defaultHandler,
+    setModalStandingsOpened: defaultHandler,
     setOpenedDropdown: defaultHandler,
     setSelectedPlayers: defaultHandler,
     setVisiblePlayer: defaultHandler,
     setVisibleTab: defaultHandler,
   },
   values: {
+    modalBestScorersSeasonOpened: () => false,
+    modalCalendarTeamOpened: () => false,
+    modalStandingsOpened: () => false,
     openedDropdown: () => null,
     selectedPlayers: () => ({
       firstTeam: [],
@@ -56,6 +65,9 @@ export const LayoutContext = createContext<ILayoutContext>({
 });
 
 export default function LayoutProvider(props: ParentProps) {
+  const [modalBestScorersSeasonOpened, setModalBestScorersSeasonOpened] = createSignal(false);
+  const [modalCalendarTeamOpened, setModalCalendarTeamOpened] = createSignal(false);
+  const [modalStandingsOpened, setModalStandingsOpened] = createSignal(false);
   const [openedDropdown, setOpenedDropdown] = createSignal<OpenedDropdown>(null);
   const [selectedPlayers, setSelectedPlayers] = createSignal<DashboardSquad>({
     firstTeam: [],
@@ -66,12 +78,18 @@ export default function LayoutProvider(props: ParentProps) {
 
   const value = {
     values: {
+      modalBestScorersSeasonOpened,
+      modalCalendarTeamOpened,
+      modalStandingsOpened,
       openedDropdown,
       selectedPlayers,
       visiblePlayer,
       visibleTab,
     },
     handlers: {
+      setModalBestScorersSeasonOpened,
+      setModalCalendarTeamOpened,
+      setModalStandingsOpened,
       setOpenedDropdown,
       setSelectedPlayers,
       setVisiblePlayer,

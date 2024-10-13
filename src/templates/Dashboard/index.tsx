@@ -4,6 +4,7 @@ import Layout from "@webfoot/components/Layout";
 
 import DashboardTableOfPlayers from "./components/TableOfPlayers";
 import Grid from "./components/Grid";
+import Modals from "./components/Modals";
 import NavBar from "./components/NavBar";
 import NextOpponent from "./components/NextOpponent";
 import TabManager from "./components/TabManager";
@@ -28,6 +29,7 @@ const Dashboard: Component = () => {
           <TabManager />
         </Grid>
       </Layout>
+      <Modals />
     </Show>
   );
 };
