@@ -1,13 +1,13 @@
-import { Show, createEffect, createResource, useContext } from "solid-js";
+import { Show, createResource, useContext } from "solid-js";
 
 import MoraleProgressBar from "@webfoot/components/MoraleProgressBar";
 import StandingLine from "@webfoot/components/StandingLine";
+import { Championship, Fixture } from "@webfoot/core/models";
+import type { IFixture, ITeam } from "@webfoot/core/models/types";
 import { describeNumberMoney } from "@webfoot/utils/number";
 
 import { ClubContext } from "../../../contexts/club";
 import { FixtureContext } from "../../../contexts/fixture";
-import { Championship, Fixture } from "@webfoot/core/models";
-import { IFixture, ITeam } from "@webfoot/core/models/types";
 
 function getResultLetter(fixture: IFixture, teamId: ITeam["id"]) {
   if (fixture.homeGoals > fixture.awayGoals) {
@@ -37,10 +37,6 @@ const Game = () => {
       resultLetter,
       season: seasonOfLastFixture,
     };
-  });
-
-  createEffect(() => {
-    console.log(lastFixture());
   });
 
   const homeTeam = () => (fixture().venue! === "H" ? club().team! : fixture().opponent!);
