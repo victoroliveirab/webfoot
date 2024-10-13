@@ -11,7 +11,7 @@ export function formatNumber(value: string | number) {
  */
 export function describeNumberMoney(value: string | number, complete: boolean = false) {
   let number = +value;
-  if (number <= 0) return `${number} reais`;
+  if (number <= 0) return `${formatNumber(number)} reais`;
   if (number === 1) return "1 real";
   if (number < 1_000) return `${number} reais`;
   if (number > 1_000_000_000) throw new Error("Hacked the matrix");

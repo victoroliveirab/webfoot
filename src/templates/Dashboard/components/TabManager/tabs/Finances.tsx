@@ -3,12 +3,13 @@ import { createResource, createEffect, Show, useContext } from "solid-js";
 import { GameLoop, TeamBudget } from "@webfoot/core/models";
 
 import { ClubContext } from "../../../contexts/club";
+import { formatNumber } from "@webfoot/utils/number";
 
 const Finances = () => {
   const club = useContext(ClubContext);
   const [budgets] = createResource(async () => {
     const allBudgets = await TeamBudget.getMultipleByIndex("teamId", club().team!.id);
-    allBudgets.sort((budgetA, budgetB) => budgetA.year - budgetB.year);
+    allBudgets.sort((budgetA, budgetB) => (budgetA.year - budgetB.year < 0 ? 1 : -1));
     return allBudgets.slice(0, 3);
   });
   const year = GameLoop.getYear()!;
@@ -102,7 +103,7 @@ const Finances = () => {
               Total de salários
             </div>
             <div role="cell" class="font-bold">
-              80 000
+              {formatNumber(club().players!.reduce((sum, player) => sum + player.salary, 0))}
             </div>
           </div>
           <div role="row" class="h-4 w-full flex justify-between">
@@ -110,7 +111,7 @@ const Finances = () => {
               Juros do empréstimo
             </div>
             <div role="cell" class="font-bold">
-              0
+              {formatNumber(currentYearBudget()!.spendings.interest)}
             </div>
           </div>
           <div role="row" class="mt-2 h-4 w-full flex justify-between">
@@ -118,7 +119,7 @@ const Finances = () => {
               Dinheiro em caixa
             </div>
             <div role="cell" class="font-bold">
-              1 885 592
+              {formatNumber(club().team!.currentCash)}
             </div>
           </div>
           <div role="row" class="mt-4 flex gap-3">

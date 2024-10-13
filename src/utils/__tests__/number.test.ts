@@ -2,13 +2,15 @@ import { describeNumberMoney } from "../number";
 
 describe("number", () => {
   describe("describeNumberMoney", () => {
-    it.each([-1, -23, -456, -7890])(
-      "should just append currency to negative number: %i",
-      (value) => {
-        const description = describeNumberMoney(value);
-        expect(description).toBe(`${value} reais`);
-      },
-    );
+    it.each([
+      [-1, "-1 reais"],
+      [-23, "-23 reais"],
+      [-456, "-456 reais"],
+      [-7890, "-7 890 reais"],
+    ])("should just append currency to negative number: %i", (value, expectedDescription) => {
+      const description = describeNumberMoney(value);
+      expect(description).toBe(expectedDescription);
+    });
 
     it.each([0, -0, "0", "-0"])("should just return 0 reais to zero number: %i", (value) => {
       const description = describeNumberMoney(value);
