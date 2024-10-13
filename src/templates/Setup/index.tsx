@@ -103,6 +103,7 @@ const Setup: Component = () => {
                 class="style-98 w-full focus:!bg-w3c-yellow uppercase"
                 id={`player-${i}`}
                 name={`player-${i}`}
+                value={i === 0 ? "Victor" : ""}
               />
             </div>
             <div role="cell" class="flex-1">
