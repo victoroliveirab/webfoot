@@ -1,5 +1,13 @@
 import { FIXTURES_8_TEAMS } from "@webfoot/core/db/constants";
-import { Championship, Fixture, GameLoop, Standing, Team, TeamBudget } from "@webfoot/core/models";
+import {
+  Championship,
+  Fixture,
+  GameLoop,
+  Player,
+  Standing,
+  Team,
+  TeamBudget,
+} from "@webfoot/core/models";
 import type { IChampionship, IStanding, ITeam } from "@webfoot/core/models/types";
 import { shuffle } from "@webfoot/utils/array";
 import { randomInt } from "@webfoot/utils/math";
@@ -136,10 +144,6 @@ export default async function postSeasonProcessor(year: number) {
     const teams = teamsByChampionship[division - 1];
 
     for (const teamId of teams) {
-      await Team.patch({
-        id: teamId,
-        championshipId,
-      });
       await Standing.add({
         championshipId,
         teamId,
@@ -150,7 +154,7 @@ export default async function postSeasonProcessor(year: number) {
         goalsPro: 0,
         goalsAgainst: 0,
       });
-      await TeamBudget.add({
+      const teamBudgetId = await TeamBudget.add({
         teamId,
         year: year + 1,
         earnings: {
@@ -164,6 +168,11 @@ export default async function postSeasonProcessor(year: number) {
           salaries: 0,
           stadium: 0,
         },
+      });
+      await Team.patch({
+        id: teamId,
+        championshipId,
+        budgetId: teamBudgetId,
       });
     }
 
@@ -221,6 +230,18 @@ export default async function postSeasonProcessor(year: number) {
         });
       }
     }
+  }
+
+  const players = await Player.getAll();
+
+  for (const player of players) {
+    await Player.patch({
+      id: player.id,
+      stats: {
+        ...player.stats,
+        seasonGoals: 0,
+      },
+    });
   }
 
   GameLoop.setYear(year + 1);

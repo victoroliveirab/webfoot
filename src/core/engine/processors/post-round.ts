@@ -1,4 +1,4 @@
-import { Fixture, Player, SimulationRecord, Standing } from "@webfoot/models";
+import { Fixture, Player, SimulationRecord, Standing, TeamBudget } from "@webfoot/models";
 
 import type {
   IChampionship,
@@ -112,6 +112,16 @@ async function processPlayersUpdates(
   await Promise.all(playerPromises);
 }
 
+async function processTeamsFinances(simulation: Simulator) {
+  const awayTeamId = simulation.fixture.awayId;
+  const homeTeamId = simulation.fixture.homeId;
+
+  await TeamBudget.creditAttendeesMoney(homeTeamId, simulation.attendees);
+
+  await TeamBudget.debitPlayersSalaries(awayTeamId);
+  await TeamBudget.debitPlayersSalaries(homeTeamId);
+}
+
 async function processFixtureEntity(simulation: Simulator) {
   const [homeGoals, awayGoals] = simulation.currentScoreline;
   const attendees = simulation.attendees;
@@ -205,6 +215,7 @@ export default async function postRoundProcessor(simulations: Simulator[]) {
   for (const simulation of simulations) {
     const { suspensionPeriods, impactedPlayers } = await processFixtureOccurances(simulation);
     await processPlayersUpdates(simulation, impactedPlayers, suspensionPeriods);
+    await processTeamsFinances(simulation);
     await processFixtureEntity(simulation);
     processedSimulations.push(
       await SimulationRecord.add({
