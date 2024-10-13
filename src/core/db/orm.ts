@@ -85,7 +85,7 @@ export default abstract class ORM<T extends { id: number }, I extends keyof T = 
 
   async getMultipleByIndex(
     indexName: I,
-    indexValue: T[I],
+    indexValue: NonNullable<T[I]>,
     max: number = Number.MAX_SAFE_INTEGER,
   ): Promise<T[]> {
     const { connection: instance, storeName } = this;

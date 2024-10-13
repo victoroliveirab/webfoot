@@ -16,6 +16,7 @@ import {
 import {
   Championship,
   Fixture,
+  GameLoop,
   League,
   Player,
   Standing,
@@ -37,6 +38,7 @@ export default async function bootstrap(saveName: string, startSeason: number, t
 
   notifyORMs(conn);
   await initDB(startSeason, brazilianTeams(), trainers);
+  GameLoop.loadSave(saveName, startSeason, 1);
 }
 
 async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: string[]) {

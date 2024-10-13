@@ -6,6 +6,7 @@ import Layout from "@webfoot/components/Layout";
 import TeamBlock from "@webfoot/components/TeamBlock";
 import bootstrap from "@webfoot/core/db/bootstrap";
 import { GameLoop, Team, Trainer } from "@webfoot/core/models";
+import useSimulateSeason from "@webfoot/hooks/useSimulateSeason";
 
 const MAX_NUMBER_OF_PLAYERS = 6;
 
@@ -27,6 +28,11 @@ const Setup: Component = () => {
   const [team] = createResource(loadTeam, async () => {
     const trainer = await Trainer.getById(1);
     return Team.getById(trainer.teamId!);
+  });
+
+  const simulateSeason = useSimulateSeason({
+    numberOfSeasons: 10,
+    yearGetter: () => GameLoop.getYear()!,
   });
 
   const saveName = state.name;
@@ -52,7 +58,6 @@ const Setup: Component = () => {
   }
 
   function submitStartGame() {
-    GameLoop.loadSave(saveName, startSeason, 1);
     navigate("/dashboard/1");
   }
 
@@ -61,12 +66,19 @@ const Setup: Component = () => {
       class="w-[480px]"
       title={() => "Jogadores"}
       actions={
-        <Button
-          class="mt-4 style-98 default h-16 px-4 w-auto font-bold"
-          onClick={uiState() === "create-trainer" ? submitCreation : submitStartGame}
-        >
-          {uiState() === "create-trainer" ? "Sortear Equipas" : "Jogar"}
-        </Button>
+        <div class="flex gap-4 mt-4">
+          <Button
+            class="style-98 default h-16 px-4 w-auto font-bold"
+            onClick={uiState() === "create-trainer" ? submitCreation : submitStartGame}
+          >
+            {uiState() === "create-trainer" ? "Sortear Equipas" : "Jogar"}
+          </Button>
+          {uiState() === "submit" && (
+            <Button class="style-98 default h-16 px-4 w-auto font-bold" onClick={simulateSeason}>
+              Simulate Season
+            </Button>
+          )}
+        </div>
       }
     >
       <div
