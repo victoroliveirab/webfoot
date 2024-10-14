@@ -6,8 +6,9 @@ import Simulator from "@webfoot/core/engine/simulator";
 import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
+import ModalTeam from "./components/ModalTeam";
 import RoundProvider, { RoundContext } from "./contexts/round";
-import type { SimulationsSignal } from "./types";
+import type { ModalTeamInfo, SimulationsSignal } from "./types";
 
 const FPS = 20;
 const TIMEOUT = 1000 / FPS;
@@ -20,6 +21,7 @@ const MatchDay: Component = () => {
     simulations: null,
   });
   const [timer, setTimer] = createSignal<number | null>(null);
+  const [teamModalInfo, setTeamModalInfo] = createSignal<ModalTeamInfo>(null);
 
   createEffect(() => {
     if (round().ready) {
@@ -77,9 +79,28 @@ const MatchDay: Component = () => {
       </div>
       <For each={Object.keys(round().fixtures!)}>
         {(championshipId) => (
-          <DivisionBlock championshipId={+championshipId} simulations={simulations} />
+          <DivisionBlock
+            championshipId={+championshipId}
+            onTeamClick={(fixtureId: number, teamId: number, oppositionId: number) => {
+              clearInterval(timer() ?? 0);
+              setTeamModalInfo({
+                fixtureId,
+                teamId,
+                oppositionId,
+              });
+            }}
+            simulations={simulations}
+          />
         )}
       </For>
+      <ModalTeam
+        info={teamModalInfo}
+        simulations={simulations}
+        onClose={() => {
+          simulations().clock < 90 && setTimer(setInterval(tick, TIMEOUT));
+          setTeamModalInfo(null);
+        }}
+      />
     </Show>
   );
 };

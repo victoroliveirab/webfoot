@@ -10,10 +10,11 @@ import { RoundContext } from "../../../../contexts/round";
 type Props = {
   championshipId: IChampionship["id"];
   fixtureId: IFixture["id"];
+  onTeamClick: (fixtureId: number, teamId: number, oppositionId: number) => void;
   simulation: Accessor<Simulator>;
 };
 
-const Match = ({ championshipId, fixtureId, simulation }: Props) => {
+const Match = ({ championshipId, fixtureId, onTeamClick, simulation }: Props) => {
   const round = useContext(RoundContext);
 
   const fixture = round().fixtures![championshipId][fixtureId];
@@ -38,6 +39,7 @@ const Match = ({ championshipId, fixtureId, simulation }: Props) => {
         background={homeTeam.background}
         foreground={homeTeam.foreground}
         border={homeTeam.border}
+        onClick={() => onTeamClick(fixtureId, homeTeam.id, awayTeam.id)}
       >
         {homeTeam.name}
       </TeamBlock>
@@ -48,6 +50,7 @@ const Match = ({ championshipId, fixtureId, simulation }: Props) => {
         background={awayTeam.background}
         foreground={awayTeam.foreground}
         border={awayTeam.border}
+        onClick={() => onTeamClick(fixtureId, awayTeam.id, homeTeam.id)}
       >
         {awayTeam.name}
       </TeamBlock>

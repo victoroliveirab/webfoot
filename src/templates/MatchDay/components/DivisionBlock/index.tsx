@@ -8,10 +8,11 @@ import type { SimulationsSignal } from "../../types";
 
 type Props = {
   championshipId: number;
+  onTeamClick: (fixtureId: number, teamId: number, oppositionId: number) => void;
   simulations: Accessor<SimulationsSignal>;
 };
 
-const DivisionBlock = ({ championshipId, simulations }: Props) => {
+const DivisionBlock = ({ championshipId, onTeamClick, simulations }: Props) => {
   const round = useContext(RoundContext);
   const fixtures = () => Object.values(round().fixtures![championshipId]);
   const [championship] = createResource(async () => Championship.getById(championshipId));
@@ -31,6 +32,7 @@ const DivisionBlock = ({ championshipId, simulations }: Props) => {
           <Match
             championshipId={championshipId}
             fixtureId={fixture.id}
+            onTeamClick={onTeamClick}
             simulation={() => simulations().simulations![fixture.id]}
           />
         ))}

@@ -1,13 +1,13 @@
-import { ParentProps } from "solid-js";
+import { type JSX, type ParentProps } from "solid-js";
 
 import type { ITeam } from "@webfoot/core/models/types";
 
 type Props = {
   background: ITeam["background"];
   border?: ITeam["border"];
-  class: HTMLDivElement["className"];
+  class?: JSX.HTMLElementTags["div"]["class"];
   foreground: ITeam["foreground"];
-  role?: HTMLDivElement["role"];
+  role?: JSX.HTMLElementTags["div"]["role"];
 };
 
 export default function DivInTeamColors(props: ParentProps<Props>) {

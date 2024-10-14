@@ -10,6 +10,7 @@ import { arrayToHashMap } from "@webfoot/utils/array";
 import type { Context, HashMap } from "@webfoot/utils/types";
 
 export type IRoundContext = Context<{
+  humanTrainerTeams: ITeam["id"][];
   initialSquads: Record<
     IFixture["id"],
     { away: Simulator["awaySquadRecord"]; home: Simulator["homeSquadRecord"] }
@@ -19,6 +20,7 @@ export type IRoundContext = Context<{
 }>;
 
 export const RoundContext = createContext<IRoundContext>(() => ({
+  humanTrainerTeams: null,
   initialSquads: null,
   fixtures: null,
   ready: false as const,
@@ -171,12 +173,14 @@ export default function RoundProvider(props: ParentProps) {
   const signal: IRoundContext = () =>
     squads.state === "ready"
       ? {
+          humanTrainerTeams: trainersTeams.map(({ teamId }) => teamId),
           initialSquads: squads()!,
           fixtures: fixtures()!,
           ready: true,
           teams: teams()!,
         }
       : {
+          humanTrainerTeams: null,
           initialSquads: null,
           fixtures: null,
           ready: false,
