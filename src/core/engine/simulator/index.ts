@@ -27,6 +27,11 @@ type SimulatorConstructorParams = {
   stadiumCapacity: number;
 };
 
+type TickUpdates = {
+  newScoreLine: [number, number];
+  newStories: Story[];
+};
+
 class Simulator {
   fixture: IFixture;
   private homeSquadRecord: SquadRecord;
@@ -34,6 +39,7 @@ class Simulator {
   private homeMorale: number;
   private awayMorale: number;
   private clock: number = 0;
+  // This will end up with 91 values (0-90 min) which is fine
   scoreline: [number, number][] = [[0, 0]];
   attendees: number;
   private story: Story[] = [];
@@ -49,10 +55,14 @@ class Simulator {
     this.attendees = randomWeighted(1_000, params.stadiumCapacity, params.homeMorale);
   }
 
-  tick(): [number, number] {
+  tick(): TickUpdates {
     let homeGoals = this.scoreline[this.clock][0];
     let awayGoals = this.scoreline[this.clock][1];
     this.clock++;
+    const updates: TickUpdates = {
+      newScoreLine: [homeGoals, awayGoals],
+      newStories: [],
+    };
 
     // OPTIMIZE: cache this number and only recalculate on sub/injury/redcard
     const homeTeamStrength = calculateTeamStrength(this.homeSquadRecord.playing, this.homeMorale);
@@ -75,7 +85,7 @@ class Simulator {
     if (hasHomeScored) {
       homeGoals++;
       const scorer = calculateScorer(this.homeSquadRecord.playing);
-      this.story.push({
+      updates.newStories.push({
         type: "GOAL_REGULAR",
         playerId: scorer.id,
         time: this.clock,
@@ -83,13 +93,13 @@ class Simulator {
     } else if (hasAwayScored) {
       awayGoals++;
       const scorer = calculateScorer(this.awaySquadRecord.playing);
-      this.story.push({
+      updates.newStories.push({
         type: "GOAL_REGULAR",
         playerId: scorer.id,
         time: this.clock,
       });
     }
-    this.scoreline.push([homeGoals, awayGoals]);
+    updates.newScoreLine = [homeGoals, awayGoals];
 
     const homePlayersSentOffCandidates = this.homeSquadRecord.playing
       .map(calculateRedCardPlayer)
@@ -106,7 +116,7 @@ class Simulator {
         ({ id }) => id !== sentOffPlayer.id,
       );
       this.homeSquadRecord.out.push(sentOffPlayer);
-      this.story.push({
+      updates.newStories.push({
         playerId: sentOffPlayer.id,
         time: this.clock,
         type: "REDCARD",
@@ -118,14 +128,21 @@ class Simulator {
         ({ id }) => id !== sentOffPlayer.id,
       );
       this.awaySquadRecord.out.push(sentOffPlayer);
-      this.story.push({
+      updates.newStories.push({
         playerId: sentOffPlayer.id,
         time: this.clock,
         type: "REDCARD",
       });
     }
 
-    return [homeGoals, awayGoals];
+    this.scoreline.push(updates.newScoreLine);
+    if (updates.newStories.length > 0) {
+      for (const newStory of updates.newStories) {
+        this.story.push(newStory);
+      }
+    }
+
+    return updates;
   }
 
   get currentScoreline() {
@@ -146,6 +163,28 @@ class Simulator {
       away: this.awaySquadRecord,
       home: this.homeSquadRecord,
     };
+  }
+
+  getPlayer(playerId: IPlayer["id"]) {
+    // Just to avoid creating unnecessary copies
+    for (const player of this.homeSquadRecord.playing) {
+      if (player.id === playerId) return player;
+    }
+    for (const player of this.awaySquadRecord.playing) {
+      if (player.id === playerId) return player;
+    }
+    for (const player of this.homeSquadRecord.out) {
+      if (player.id === playerId) return player;
+    }
+    for (const player of this.awaySquadRecord.out) {
+      if (player.id === playerId) return player;
+    }
+    for (const player of this.homeSquadRecord.bench) {
+      if (player.id === playerId) return player;
+    }
+    for (const player of this.awaySquadRecord.bench) {
+      if (player.id === playerId) return player;
+    }
   }
 }
 

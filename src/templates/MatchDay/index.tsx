@@ -22,6 +22,7 @@ const MatchDay: Component = () => {
   });
   const [timer, setTimer] = createSignal<number | null>(null);
   const [teamModalInfo, setTeamModalInfo] = createSignal<ModalTeamInfo>(null);
+  let requireHumanActions: ModalTeamInfo[] = [];
 
   createEffect(() => {
     if (round().ready) {
@@ -52,16 +53,75 @@ const MatchDay: Component = () => {
   function tick() {
     const fixtureSimulations = Object.values(simulations().simulations!);
     const now = simulations().clock;
-    for (const simulation of fixtureSimulations) simulation.tick();
+    const isHalfTime = now === 45;
+    const triggerRequiredHumanAction: NonNullable<ModalTeamInfo>[] = [];
+    for (const simulation of fixtureSimulations) {
+      const newSimulationState = simulation.tick();
+      // If it is halftime, we are opening all the modals anyway, so we can skip this
+      if (!isHalfTime && newSimulationState.newStories.length > 0) {
+        for (const story of newSimulationState.newStories) {
+          const isStoryToTriggerInteraction = story.type === "REDCARD" || story.type === "INJURY";
+          const storyPlayerTeam = simulation.getPlayer(story.playerId)!.teamId;
+          const isTeamControlledByHuman = round().humanTrainerTeams!.includes(storyPlayerTeam);
+          if (isStoryToTriggerInteraction && isTeamControlledByHuman) {
+            triggerRequiredHumanAction.push({
+              teamId: storyPlayerTeam,
+              oppositionId:
+                simulation.fixture.homeId === storyPlayerTeam
+                  ? simulation.fixture.awayId
+                  : simulation.fixture.homeId,
+              fixtureId: simulation.fixture.id,
+            });
+          }
+        }
+      }
+    }
     if (now >= 90) {
       clearInterval(timer()!);
       setTimeout(finishRound, 2000);
       return;
     }
+    if (now === 45) {
+      clearInterval(timer()!);
+      const trainerTeams = round().humanTrainerTeams!;
+      for (const teamId of trainerTeams) {
+        const { fixture } = fixtureSimulations.find(
+          (simulation) =>
+            simulation.fixture.homeId === teamId || simulation.fixture.awayId === teamId,
+        )!;
+        const oppositionId = fixture.homeId === teamId ? fixture.awayId : fixture.homeId;
+        triggerRequiredHumanAction.push({
+          fixtureId: fixture.id,
+          oppositionId,
+          teamId,
+        });
+      }
+      requireHumanActions = triggerRequiredHumanAction;
+    } else if (triggerRequiredHumanAction.length > 0) {
+      clearInterval(timer()!);
+      requireHumanActions = triggerRequiredHumanAction;
+    }
     setSimulations({
-      clock: now + 1,
+      clock: requireHumanActions.length > 0 ? now : now + 1,
       simulations: simulations().simulations,
     });
+    if (requireHumanActions.length > 0) setTeamModalInfo(requireHumanActions.pop()!);
+  }
+
+  function handleCloseTeamModal() {
+    if (requireHumanActions.length > 0) {
+      const nextTeamInfo = requireHumanActions.pop()!;
+      setTeamModalInfo(nextTeamInfo);
+    } else {
+      if (simulations().clock < 90) {
+        setTimer(setInterval(tick, TIMEOUT));
+        setSimulations({
+          clock: simulations().clock + 1,
+          simulations: simulations().simulations,
+        });
+      }
+      setTeamModalInfo(null);
+    }
   }
 
   async function finishRound() {
@@ -93,14 +153,7 @@ const MatchDay: Component = () => {
           />
         )}
       </For>
-      <ModalTeam
-        info={teamModalInfo}
-        simulations={simulations}
-        onClose={() => {
-          simulations().clock < 90 && setTimer(setInterval(tick, TIMEOUT));
-          setTeamModalInfo(null);
-        }}
-      />
+      <ModalTeam info={teamModalInfo} simulations={simulations} onClose={handleCloseTeamModal} />
     </Show>
   );
 };
