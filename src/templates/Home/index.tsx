@@ -129,6 +129,7 @@ const Home: Component = () => {
                 class="style-98"
                 onClick={(e) => {
                   e.preventDefault();
+                  window.localStorage.clear();
                   for (const save of saves()!) {
                     indexedDB.deleteDatabase(save);
                   }

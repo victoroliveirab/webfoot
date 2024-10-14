@@ -58,6 +58,9 @@ export default class GameLoop {
       week: 1,
     };
     this.setRecord(record);
+    this.setCurrentSave(name);
+    this.setYear(year);
+    this.setWeek(1);
   }
 
   static loadSave(name: string) {
