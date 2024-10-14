@@ -6,6 +6,7 @@ import Dropdown, { DropdownOption } from "@webfoot/components/Dropdown";
 import useFormationsOptions from "./useFormations";
 import { LayoutContext } from "../../contexts/layout";
 import type { OpenedDropdown } from "../../types";
+import { GameLoop } from "@webfoot/core/models";
 
 const NavBar = () => {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ const NavBar = () => {
     {
       label: "Sair",
       onClick: () => {
-        window.localStorage.clear();
+        GameLoop.unloadSave();
         navigate("/");
       },
     },

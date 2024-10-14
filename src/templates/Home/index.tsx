@@ -34,7 +34,7 @@ const Home: Component = () => {
       await connect({
         name: loadGameName,
       });
-      GameLoop.setCurrentSave(loadGameName);
+      GameLoop.loadSave(loadGameName);
       navigate("/dashboard/1");
     } else if (radioChoice === "newgame") {
       const newSaveName = formData.get("newgame-name")?.toString();

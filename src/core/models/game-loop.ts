@@ -1,8 +1,14 @@
+type BookkeeperRecord = {
+  season: number;
+  week: number;
+};
+type SaveName = string;
+
 export default class GameLoop {
   static getCurrentSave() {
     return localStorage.getItem("current-game");
   }
-  static setCurrentSave(name: string) {
+  static setCurrentSave(name: SaveName) {
     localStorage.setItem("current-game", name);
   }
 
@@ -37,9 +43,45 @@ export default class GameLoop {
     }
   }
 
-  static loadSave(name: string, year: number, week: number) {
+  private static getRecord(): Record<SaveName, BookkeeperRecord> {
+    return JSON.parse(window.localStorage.getItem("record") || "{}");
+  }
+  private static setRecord(record: Record<SaveName, BookkeeperRecord>) {
+    window.localStorage.setItem("record", JSON.stringify(record));
+  }
+
+  static createSave(name: string, year: number) {
+    const record = this.getRecord();
+    if (record[name]) throw new Error(`There is already a save called ${name}`);
+    record[name] = {
+      season: year,
+      week: 1,
+    };
+    this.setRecord(record);
+  }
+
+  static loadSave(name: string) {
+    const record = this.getRecord();
+    if (!record[name]) throw new Error(`There is no save file called ${name}`);
     this.setCurrentSave(name);
-    this.setYear(year);
-    this.setWeek(week);
+    this.setYear(record[name].season);
+    this.setWeek(record[name].week);
+  }
+
+  static updateCurrentSave() {
+    const currentSave = this.getCurrentSave();
+    if (!currentSave) throw new Error(`${currentSave} appears to be corrupted`);
+    const record = this.getRecord();
+    record[currentSave] = {
+      season: this.getYear()!,
+      week: this.getWeek()!,
+    };
+    this.setRecord(record);
+  }
+
+  static unloadSave() {
+    this.setCurrentSave("");
+    this.setYear("");
+    this.setWeek("");
   }
 }

@@ -18,6 +18,7 @@ const StandingsPage: Component = () => {
 
   function submitContinue() {
     GameLoop.setWeek(week! + 1);
+    GameLoop.updateCurrentSave();
     navigate("/dashboard/1");
   }
 
