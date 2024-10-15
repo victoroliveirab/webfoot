@@ -12,7 +12,7 @@ export default function ModalBestScorersSeason() {
   return (
     <Layout
       title={() => "Melhores marcadores desta época"}
-      class="h-[640px] w-[480px]"
+      class="max-h-[640px] w-[480px]"
       onClickClose={() => setModalBestScorersSeasonOpened(false)}
       actions={
         <button

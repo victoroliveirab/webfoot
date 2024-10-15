@@ -7,7 +7,7 @@ type Props = {
   border?: ITeam["border"];
   foreground: ITeam["foreground"];
   selected?: Accessor<boolean>;
-} & JSX.HTMLElementTags["div"];
+} & Omit<JSX.HTMLElementTags["div"], "id">;
 
 export default function DivInTeamColors(props: ParentProps<Props>) {
   const [styleProps, renderProps, otherProps] = splitProps(

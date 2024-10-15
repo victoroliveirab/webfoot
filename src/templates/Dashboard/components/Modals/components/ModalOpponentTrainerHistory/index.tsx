@@ -15,7 +15,7 @@ export default function ModalOpponentTrainerHistory() {
   return (
     <Layout
       title={() => fixture().opponentTrainer!.name}
-      class="h-[320px] w-[360px]"
+      class="max-h-[320px] w-[360px]"
       onClickClose={() => setModalOpponentTrainerHistoryOpened(false)}
       withContainerStyles
     >

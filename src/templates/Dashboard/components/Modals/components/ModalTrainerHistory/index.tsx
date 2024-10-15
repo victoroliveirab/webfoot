@@ -15,7 +15,7 @@ export default function ModalTrainerHistory() {
   return (
     <Layout
       title={() => club().trainer!.name}
-      class="h-[320px] w-[360px]"
+      class="max-h-[320px] w-[360px]"
       onClickClose={() => setModalTrainerHistoryOpened(false)}
       withContainerStyles
     >
