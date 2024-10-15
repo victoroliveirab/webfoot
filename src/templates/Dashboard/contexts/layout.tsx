@@ -6,7 +6,7 @@ import {
   type Setter,
 } from "solid-js";
 
-import { IPlayer } from "@webfoot/core/models/types";
+import type { IPlayer, ITeam } from "@webfoot/core/models/types";
 
 import type { DashboardSquad, OpenedDropdown, Tabs } from "../types";
 
@@ -37,6 +37,7 @@ type UnwrapedContext = {
   selectedPlayers: DashboardSquad;
   visiblePlayer: IPlayer | null;
   visibleTab: Tabs;
+  visibleTeam: ITeam["id"] | null;
 };
 
 type ILayoutContext = ContextBuilder<UnwrapedContext>;
@@ -55,6 +56,7 @@ export const LayoutContext = createContext<ILayoutContext>({
     setSelectedPlayers: defaultHandler,
     setVisiblePlayer: defaultHandler,
     setVisibleTab: defaultHandler,
+    setVisibleTeam: defaultHandler,
   },
   values: {
     modalBestScorersSeasonOpened: () => false,
@@ -70,6 +72,7 @@ export const LayoutContext = createContext<ILayoutContext>({
     }),
     visiblePlayer: () => null,
     visibleTab: () => "Game" as const,
+    visibleTeam: () => null,
   },
 });
 
@@ -88,6 +91,7 @@ export default function LayoutProvider(props: ParentProps) {
   });
   const [visiblePlayer, setVisiblePlayer] = createSignal<IPlayer | null>(null);
   const [visibleTab, setVisibleTab] = createSignal<Tabs>("Game");
+  const [visibleTeam, setVisibleTeam] = createSignal<ITeam["id"] | null>(null);
 
   const value = {
     values: {
@@ -101,6 +105,7 @@ export default function LayoutProvider(props: ParentProps) {
       selectedPlayers,
       visiblePlayer,
       visibleTab,
+      visibleTeam,
     },
     handlers: {
       setModalBestScorersSeasonOpened,
@@ -113,6 +118,7 @@ export default function LayoutProvider(props: ParentProps) {
       setSelectedPlayers,
       setVisiblePlayer,
       setVisibleTab,
+      setVisibleTeam,
     },
   };
 
