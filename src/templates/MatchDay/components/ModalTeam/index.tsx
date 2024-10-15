@@ -1,23 +1,24 @@
-import { useContext, type Accessor } from "solid-js";
+import { useContext, type Accessor, Show } from "solid-js";
 
-import Button from "@webfoot/components/Button";
 import DivInTeamColors from "@webfoot/components/DivInTeamColors";
 import Layout from "@webfoot/components/Layout";
 import Modal from "@webfoot/components/Modal";
+import { IPlayer } from "@webfoot/core/models/types";
 
+import ActionTables from "./components/ActionTables";
 import Occurances from "./components/Occurances";
-import Table from "./components/Table";
 import { RoundContext } from "../../contexts/round";
-import type { ModalTeamInfo, SimulationsSignal } from "../../types";
+import { SimulationsContext } from "../../contexts/simulations";
+import type { ModalTeamInfo } from "../../types";
 
 type Props = {
   info: Accessor<ModalTeamInfo>;
   onClose: () => void;
-  simulations: Accessor<SimulationsSignal>;
 };
 
-const ModalTeam = ({ info: infoIds, onClose, simulations }: Props) => {
+const ModalTeam = ({ info: infoIds, onClose }: Props) => {
   const round = useContext(RoundContext);
+  const { simulations, triggerUpdate } = useContext(SimulationsContext);
 
   const fixture = () => {
     if (!infoIds()) return null;
@@ -30,7 +31,7 @@ const ModalTeam = ({ info: infoIds, onClose, simulations }: Props) => {
   };
   const simulation = () =>
     fixture()
-      ? Object.values(simulations()!.simulations!).find(
+      ? Object.values(simulations()).find(
           ({ fixture: { id: fixtureId } }) => fixtureId === fixture()!.id,
         )!
       : null;
@@ -53,6 +54,18 @@ const ModalTeam = ({ info: infoIds, onClose, simulations }: Props) => {
     if (simulation()!.fixture.homeId === infoIds()!.teamId) return simulation()!.squads.home;
     return simulation()!.squads.away;
   };
+  const showSubstituteButton = () => {
+    if (!team()) return false;
+    if (!round().humanTrainerTeams!.includes(team()!.id)) return false;
+    const subsLeftKey =
+      team()!.id === simulation()!.fixture.homeId ? "homeSubsLeft" : "awaySubsLeft";
+    return simulation()![subsLeftKey] > 0;
+  };
+
+  function handleSubstitution(playerOut: IPlayer, playerIn: IPlayer) {
+    simulation()!.substitutePlayers(team()!.id, playerOut.id, playerIn.id);
+    triggerUpdate();
+  }
 
   return (
     <Modal show={infoIds} class="w-[640px] h-[480px]">
@@ -77,27 +90,14 @@ const ModalTeam = ({ info: infoIds, onClose, simulations }: Props) => {
                   {team()?.name}
                 </h2>
                 <div class="flex-1">
-                  <div class="h-full border border-black">
-                    <div class="grid grid-cols-2 items-center gap-8 px-4 pt-3 pb-2">
-                      <Table
-                        class="h-[220px] border border-black"
-                        players={() => teamSquad()?.playing ?? []}
-                      />
-                      <div class="flex flex-col h-full justify-between">
-                        <Table
-                          class="h-[100px] border border-black"
-                          players={() => teamSquad()?.bench ?? []}
-                        />
-                        <div class="flex justify-end pb-1">
-                          {round().humanTrainerTeams!.includes(team()?.id ?? 0) && (
-                            <Button class="style-98" disabled>
-                              Substituir
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <Show when={!!team()}>
+                    <ActionTables
+                      onClickSubstitute={handleSubstitution}
+                      showSubstituteButton={showSubstituteButton}
+                      team={() => team()!}
+                      teamSquad={teamSquad}
+                    />
+                  </Show>
                 </div>
               </DivInTeamColors>
             </div>

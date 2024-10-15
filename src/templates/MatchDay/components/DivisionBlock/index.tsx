@@ -1,19 +1,20 @@
-import { type Accessor, Show, createResource, useContext } from "solid-js";
+import { Show, createResource, useContext } from "solid-js";
 
 import { Championship, League } from "@webfoot/core/models";
 
-import { RoundContext } from "../../contexts/round";
 import Match from "./components/Match";
-import type { SimulationsSignal } from "../../types";
+import { RoundContext } from "../../contexts/round";
+import { SimulationsContext } from "../../contexts/simulations";
 
 type Props = {
   championshipId: number;
   onTeamClick: (fixtureId: number, teamId: number, oppositionId: number) => void;
-  simulations: Accessor<SimulationsSignal>;
 };
 
-const DivisionBlock = ({ championshipId, onTeamClick, simulations }: Props) => {
+const DivisionBlock = ({ championshipId, onTeamClick }: Props) => {
   const round = useContext(RoundContext);
+  const { simulations } = useContext(SimulationsContext);
+
   const fixtures = () => Object.values(round().fixtures![championshipId]);
   const [championship] = createResource(async () => Championship.getById(championshipId));
   const [league] = createResource(championship, async () =>
@@ -22,7 +23,7 @@ const DivisionBlock = ({ championshipId, onTeamClick, simulations }: Props) => {
 
   return (
     <section class="border border-black w-full p-1 mt-4">
-      <Show when={league.state === "ready" && !!simulations()}>
+      <Show when={league.state === "ready"}>
         <h2 class="-mt-4 ml-20 font-bold text-w3c-yellow bg-w3c-green w-fit px-1">
           {league()!.name}
         </h2>
@@ -33,7 +34,7 @@ const DivisionBlock = ({ championshipId, onTeamClick, simulations }: Props) => {
             championshipId={championshipId}
             fixtureId={fixture.id}
             onTeamClick={onTeamClick}
-            simulation={() => simulations().simulations![fixture.id]}
+            simulation={() => simulations()[fixture.id]}
           />
         ))}
       </ul>

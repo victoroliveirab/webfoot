@@ -1,14 +1,14 @@
-import { useContext, type Component, createSignal, createEffect, For, Show } from "solid-js";
+import { useContext, type Component, createSignal, For, Show, createEffect } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 
 import Clock from "@webfoot/components/Clock";
-import Simulator from "@webfoot/core/engine/simulator";
 import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
 import ModalTeam from "./components/ModalTeam";
 import RoundProvider, { RoundContext } from "./contexts/round";
-import type { ModalTeamInfo, SimulationsSignal } from "./types";
+import type { ModalTeamInfo } from "./types";
+import SimulationsProvider, { SimulationsContext } from "./contexts/simulations";
 
 const FPS = 20;
 const TIMEOUT = 1000 / FPS;
@@ -16,43 +16,20 @@ const TIMEOUT = 1000 / FPS;
 const MatchDay: Component = () => {
   const navigate = useNavigate();
   const round = useContext(RoundContext);
-  const [simulations, setSimulations] = createSignal<SimulationsSignal>({
-    clock: 0,
-    simulations: null,
-  });
+  const { ready: simulationsReady, simulations, triggerUpdate } = useContext(SimulationsContext);
+
+  const [clock, setClock] = createSignal(0);
   const [timer, setTimer] = createSignal<number | null>(null);
   const [teamModalInfo, setTeamModalInfo] = createSignal<ModalTeamInfo>(null);
   let requireHumanActions: ModalTeamInfo[] = [];
 
   createEffect(() => {
-    if (round().ready) {
-      const simulations: SimulationsSignal["simulations"] = {};
-      const allChampionshipsIds = Object.keys(round().fixtures!);
-      for (const championshipId of allChampionshipsIds) {
-        const allFixtures = round().fixtures![+championshipId];
-        for (const fixture of Object.values(allFixtures)) {
-          const simulator = new Simulator({
-            awayMorale: round().teams![fixture.awayId].morale,
-            awayInitialSquad: round().initialSquads![fixture.id].away,
-            fixture,
-            homeMorale: round().teams![fixture.homeId].morale,
-            homeInitialSquad: round().initialSquads![fixture.id].home,
-            stadiumCapacity: round().teams![fixture.homeId].currentStadiumCapacity,
-          });
-          simulations[fixture.id] = simulator;
-        }
-      }
-      setSimulations({
-        clock: 0,
-        simulations,
-      });
-      setTimer(setInterval(tick, TIMEOUT));
-    }
+    if (simulationsReady() && clock() === 0) setTimer(setInterval(tick, TIMEOUT));
   });
 
   function tick() {
-    const fixtureSimulations = Object.values(simulations().simulations!);
-    const now = simulations().clock;
+    const fixtureSimulations = Object.values(simulations());
+    const now = clock();
     const isHalfTime = now === 45;
     const triggerRequiredHumanAction: NonNullable<ModalTeamInfo>[] = [];
     for (const simulation of fixtureSimulations) {
@@ -78,6 +55,7 @@ const MatchDay: Component = () => {
     }
     if (now >= 90) {
       clearInterval(timer()!);
+      // Probably a good idea dismiss this timeout if we click in a team and reset the timer
       setTimeout(finishRound, 2000);
       return;
     }
@@ -101,11 +79,10 @@ const MatchDay: Component = () => {
       clearInterval(timer()!);
       requireHumanActions = triggerRequiredHumanAction;
     }
-    setSimulations({
-      clock: requireHumanActions.length > 0 ? now : now + 1,
-      simulations: simulations().simulations,
-    });
-    if (requireHumanActions.length > 0) setTeamModalInfo(requireHumanActions.pop()!);
+    if (requireHumanActions.length === 0) {
+      setClock(now + 1);
+    } else setTeamModalInfo(requireHumanActions.pop()!);
+    triggerUpdate();
   }
 
   function handleCloseTeamModal() {
@@ -113,29 +90,26 @@ const MatchDay: Component = () => {
       const nextTeamInfo = requireHumanActions.pop()!;
       setTeamModalInfo(nextTeamInfo);
     } else {
-      if (simulations().clock < 90) {
+      if (clock() < 90) {
         setTimer(setInterval(tick, TIMEOUT));
-        setSimulations({
-          clock: simulations().clock + 1,
-          simulations: simulations().simulations,
-        });
+        setClock(clock() + 1);
       }
       setTeamModalInfo(null);
     }
   }
 
   async function finishRound() {
-    const simulationEntities = Object.values(simulations().simulations!);
+    const simulationEntities = Object.values(simulations());
     await postRoundProcessor(simulationEntities);
     navigate("/standings");
   }
 
-  const ready = () => round().ready && !!simulations().simulations;
+  const ready = () => round().ready && !!simulationsReady();
 
   return (
     <Show when={ready()}>
       <div class="w-full flex justify-end">
-        <Clock radius={30} time={() => Math.min(simulations().clock, 90)} />
+        <Clock radius={30} time={() => Math.min(clock(), 90)} />
       </div>
       <For each={Object.keys(round().fixtures!)}>
         {(championshipId) => (
@@ -149,17 +123,18 @@ const MatchDay: Component = () => {
                 oppositionId,
               });
             }}
-            simulations={simulations}
           />
         )}
       </For>
-      <ModalTeam info={teamModalInfo} simulations={simulations} onClose={handleCloseTeamModal} />
+      <ModalTeam info={teamModalInfo} onClose={handleCloseTeamModal} />
     </Show>
   );
 };
 
 export default () => (
   <RoundProvider>
-    <MatchDay />
+    <SimulationsProvider>
+      <MatchDay />
+    </SimulationsProvider>
   </RoundProvider>
 );

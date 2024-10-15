@@ -1,5 +1,5 @@
 import type { Story } from "@webfoot/core/db/types";
-import type { IFixture, IPlayer } from "@webfoot/core/models/types";
+import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
 import { pickRandom } from "@webfoot/utils/array";
 import { randomWeighted } from "@webfoot/utils/math";
 
@@ -12,7 +12,7 @@ import calculateTeamStrength from "../calculators/team-strength";
 import calculateScorer from "../calculators/goal-scorer";
 import calculateRedCardPlayer from "../calculators/red-card";
 
-type SquadRecord = {
+export type SquadRecord = {
   playing: IPlayer[];
   bench: IPlayer[];
   out: IPlayer[];
@@ -39,6 +39,8 @@ class Simulator {
   private homeMorale: number;
   private awayMorale: number;
   private clock: number = 0;
+  homeSubsLeft: number = 3;
+  awaySubsLeft: number = 3;
   // This will end up with 91 values (0-90 min) which is fine
   scoreline: [number, number][] = [[0, 0]];
   attendees: number;
@@ -184,6 +186,24 @@ class Simulator {
     }
     for (const player of this.awaySquadRecord.bench) {
       if (player.id === playerId) return player;
+    }
+  }
+
+  substitutePlayers(teamId: ITeam["id"], playerOut: IPlayer["id"], playerIn: IPlayer["id"]) {
+    const squadRecord =
+      teamId === this.fixture.homeId ? this.homeSquadRecord : this.awaySquadRecord;
+    const leavingPlayer = squadRecord.playing.findIndex((player) => player.id === playerOut);
+    const joiningPlayer = squadRecord.bench.findIndex((player) => player.id === playerIn);
+    if (leavingPlayer < 0 || joiningPlayer < 0)
+      throw new Error("Cannot switch players that don't belong to team");
+    const outPlayer = squadRecord.playing[leavingPlayer];
+    squadRecord.playing.splice(leavingPlayer, 1, squadRecord.bench[joiningPlayer]);
+    squadRecord.bench.splice(joiningPlayer, 1);
+    squadRecord.out.push(outPlayer);
+    if (teamId === this.fixture.homeId) {
+      this.homeSubsLeft--;
+    } else {
+      this.awaySubsLeft--;
     }
   }
 }
