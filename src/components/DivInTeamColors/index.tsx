@@ -19,7 +19,8 @@ export default function DivInTeamColors(props: ParentProps<Props>) {
     <div
       style={{
         background: styleProps.selected?.() ? styleProps.foreground : styleProps.background,
-        "border-color": styleProps.border ?? "transparent",
+        "border-style": "dotted",
+        "border-color": styleProps.selected?.() ? "#e5e7eb" : (styleProps.border ?? "transparent"),
         color: styleProps.selected?.() ? styleProps.background : styleProps.foreground,
       }}
       {...otherProps}

@@ -1,7 +1,10 @@
 import { type Accessor, For, createSignal } from "solid-js";
 
+import type { Color } from "@webfoot/core/db/types";
 import type { IPlayer } from "@webfoot/core/models/types";
 import type { ArrayOfField } from "@webfoot/utils/types";
+
+import DivInTeamColors from "../DivInTeamColors";
 
 type DashboardSquad = {
   firstTeam: IPlayer[];
@@ -9,9 +12,9 @@ type DashboardSquad = {
 };
 
 type Props = {
-  background?: string;
+  background: Color;
   class?: string;
-  foreground?: string;
+  foreground: Color;
   onClickPlayer?: (id: number) => void;
   onSelectPlayer?: (id: number) => void;
   players: IPlayer[];
@@ -65,20 +68,12 @@ export default function TableOfPlayers({
             players[index()].position !== players[index() - 1].position ? (
               <hr class="border-top" style={{ "border-color": background }} />
             ) : null}
-            <div
+            <DivInTeamColors
               role="row"
-              class={`flex border border-dotted select-none font-bold text-sm ${selectedRow() === index() ? "" : "border-transparent"}`}
-              style={
-                selectedRow() === index()
-                  ? {
-                      "background-color": background,
-                      color: foreground,
-                    }
-                  : {
-                      "background-color": foreground,
-                      color: background,
-                    }
-              }
+              class="flex border border-dotted select-none font-bold text-sm"
+              background={foreground}
+              foreground={background}
+              selected={() => selectedRow() === index()}
               onClick={() => {
                 setSelectedRow(index);
                 onClickPlayer?.(player.id);
@@ -114,7 +109,7 @@ export default function TableOfPlayers({
               <div role="cell" class="w-10">
                 {player.available ? "" : "+"}
               </div>
-            </div>
+            </DivInTeamColors>
           </>
         )}
       </For>
