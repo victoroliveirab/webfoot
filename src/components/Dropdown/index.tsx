@@ -56,7 +56,7 @@ const Dropdown = ({ id, label, onClick, onClose, options, show }: Props) => {
       <Show when={show()}>
         <Portal mount={document.getElementById(id)!}>
           <ul
-            class="absolute top-full left-0 flex flex-col bg-w3c-lightgray text-sm"
+            class="absolute top-full left-0 flex flex-col bg-w3c-lightgray text-sm z-50"
             style={{
               "box-shadow": "5px 5px 10px 0px rgba(0,0,0,0.6)",
             }}
