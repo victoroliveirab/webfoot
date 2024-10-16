@@ -10,7 +10,11 @@ import { LayoutContext } from "../../../contexts/layout";
 const Opponent = () => {
   const fixture = useContext(FixtureContext);
   const {
-    handlers: { setModalOpponentCalendarOpened, setModalOpponentTrainerHistoryOpened },
+    handlers: {
+      setModalOpponentCalendarOpened,
+      setModalOpponentTrainerHistoryOpened,
+      setVisibleTeam,
+    },
   } = useContext(LayoutContext);
 
   return (
@@ -42,7 +46,9 @@ const Opponent = () => {
             </Button>
           </li>
           <li>
-            <Button class="style-98">Plantel</Button>
+            <Button class="style-98" onClick={() => setVisibleTeam(fixture().opponent!.id)}>
+              Plantel
+            </Button>
           </li>
         </ul>
       </div>

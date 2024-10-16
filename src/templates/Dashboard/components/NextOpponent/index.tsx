@@ -5,9 +5,13 @@ import TeamBlock from "@webfoot/components/TeamBlock";
 import { GameLoop } from "@webfoot/core/models";
 
 import { FixtureContext } from "../../contexts/fixture";
+import { LayoutContext } from "../../contexts/layout";
 
 export default function NextOpponent() {
   const fixture = useContext(FixtureContext);
+  const {
+    handlers: { setVisibleTab },
+  } = useContext(LayoutContext);
   const round = GameLoop.getWeek()!;
   const year = GameLoop.getYear()!;
 
@@ -19,9 +23,10 @@ export default function NextOpponent() {
       </h3>
       <DivInTeamColors class="ml-3 mb-1 uppercase" {...fixture().opponent!}>
         <TeamBlock
-          class="text-base"
+          class="text-base !cursor-default"
           background={fixture().opponent!.background}
           foreground={fixture().opponent!.foreground}
+          onClick={() => setVisibleTab("Opponent")}
         >
           {fixture().opponent!.name}
         </TeamBlock>
