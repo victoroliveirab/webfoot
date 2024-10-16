@@ -20,6 +20,7 @@ import useDBReady from "@webfoot/hooks/useDBReady";
 import { arrayToHashMap } from "@webfoot/utils/array";
 
 import { LayoutContext } from "../../../../contexts/layout";
+import Frame from "@webfoot/components/Frame";
 
 export default function ModalExplore() {
   const dbReady = useDBReady();
@@ -109,15 +110,17 @@ export default function ModalExplore() {
                   : null}
               </h2>
             </div>
-            <TableOfPlayers
-              class="flex-1 overflow-y-auto text-sm pl-1"
-              background={team()!.background}
-              foreground={team()!.foreground}
-              players={players()!}
-              onClickPlayer={(playerId) =>
-                setSelectedPlayer(players()!.find((player) => player.id === playerId)!)
-              }
-            />
+            <Frame class="flex-1">
+              <TableOfPlayers
+                class="h-full overflow-y-auto text-sm pl-1"
+                background={team()!.background}
+                foreground={team()!.foreground}
+                players={players()!}
+                onClickPlayer={(playerId) =>
+                  setSelectedPlayer(players()!.find((player) => player.id === playerId)!)
+                }
+              />
+            </Frame>
           </div>
           <div class="col-span-2 pl-6 pr-8 pt-2 pb-3 flex flex-col justify-between">
             <div class="flex flex-col gap-3 text-sm">

@@ -40,9 +40,11 @@ export default function Layout({
         </div>
         {menu}
       </header>
-      <section class={`flex-1 flex w-auto ${withContainerStyles ? "p-2 overflow-y-hidden" : ""}`}>
-        <div class={`w-full h-full ${withContainerStyles ? "p-2 border border-black" : ""}`}>
-          <div class={`w-full h-full ${withContainerStyles ? "border border-black" : ""}`}>
+      <section class={`flex-1 flex flex-col w-auto min-h-0 ${withContainerStyles ? "p-2" : ""}`}>
+        <div
+          class={`flex-1 flex flex-col min-h-0 ${withContainerStyles ? "p-2 border border-black" : ""}`}
+        >
+          <div class={`flex-1 overflow-y-auto ${withContainerStyles ? "border border-black" : ""}`}>
             {children}
           </div>
         </div>
