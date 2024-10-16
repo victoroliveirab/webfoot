@@ -1,5 +1,15 @@
 import type { IPlayer } from "@webfoot/core/models/types";
 import { pickRandom } from "@webfoot/utils/array";
+import {
+  MODE_MAX_POWER,
+  MODE_MIN_POWER,
+  PLAYER_MAX_POWER,
+  PLAYER_MIN_POWER,
+  POWER_SCALING_FACTOR,
+  RANDOMNESS_VARIANCE,
+  TEAM_MAX_POWER,
+  TEAM_MIN_POWER,
+} from "./constants";
 
 // Copied from https://github.com/faker-js/faker/tree/next/src/locales/pt_BR/person
 const FIRST_NAMES = [
@@ -117,22 +127,28 @@ const LAST_NAMES = [
   "Albuquerque",
 ];
 
-/**
- * NOTE: later we can use statistics techniques to better spread the power
- * FIXME: this is very bad :P
- */
+function playerPowerByTeamBasePower(teamBasePower: number) {
+  const scaledPower = Math.pow(teamBasePower, POWER_SCALING_FACTOR);
+  const maxScaledPower = Math.pow(TEAM_MAX_POWER, POWER_SCALING_FACTOR);
+
+  const base =
+    MODE_MIN_POWER +
+    ((scaledPower - TEAM_MIN_POWER) * (MODE_MAX_POWER - MODE_MIN_POWER)) /
+      (maxScaledPower - TEAM_MIN_POWER);
+  const randomOffset = (Math.random() - 0.5) * RANDOMNESS_VARIANCE;
+  const power = Math.round(base + randomOffset);
+
+  if (power < PLAYER_MIN_POWER) return PLAYER_MIN_POWER;
+  if (power > PLAYER_MAX_POWER) return PLAYER_MAX_POWER;
+  return power;
+}
+
 export function generateRandomPlayer(teamBasePower: number, position: IPlayer["position"]) {
   const twoNames = Math.random() < 0.2;
   const firstName = pickRandom(FIRST_NAMES);
   const lastName = twoNames ? pickRandom(LAST_NAMES) : "";
   const name = [firstName, lastName].join(" ").trimEnd();
-
-  const clampedBase = Math.max(1, Math.min(teamBasePower, 20));
-
-  const min = 1 + ((clampedBase - 1) * 7) / 19;
-  const max = 8 + ((clampedBase - 1) * 42) / 19;
-
-  const power = Math.floor(Math.random() * (max - min + 1)) + Math.floor(min);
+  const power = playerPowerByTeamBasePower(teamBasePower);
 
   return {
     name,

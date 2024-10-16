@@ -145,6 +145,12 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
   // 4- Create players
   const players: IPlayer[] = [];
   const positionDistribution = (numberOfPlayers: number) => {
+    if (numberOfPlayers === 14) {
+      return [2, 5, 4, 3];
+    }
+    if (numberOfPlayers === 15) {
+      return [2, 5, 5, 3];
+    }
     if (numberOfPlayers === 16) {
       return [2, 5, 5, 4];
     }
@@ -163,7 +169,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
     const team = teams[i];
     const teamId = team.id;
     const teamBasePower = scaledTeams[i].base;
-    const numberOfPlayers = normalRandomInt(16, 20);
+    const numberOfPlayers = normalRandomInt(14, 20);
     const playerDistribution = positionDistribution(numberOfPlayers);
     const positions: IPlayer["position"][] = ["G", "D", "M", "A"];
     for (let positionIndex = 0; positionIndex < positions.length; ++positionIndex) {
@@ -210,6 +216,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
         {
           description: `Ingresso no ${team.name.toUpperCase()}`,
           season: startSeason,
+          teamId: team.id,
           type: "join",
         },
       ],
@@ -290,23 +297,13 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
 }
 
 function scaleTeams(teams: TeamSeed[]) {
-  const newMin = 1;
-  const newMax = 20;
+  const teamsSorted = teams.toSorted((teamA, teamB) => (teamA.base < teamB.base ? 1 : -1));
 
-  const currentBases = teams.map(({ base }) => base);
-  const currentMin = Math.min(...currentBases);
-  const currentMax = Math.max(...currentBases);
+  teamsSorted.forEach((team, index) => {
+    const newBase = Math.max(1, Math.ceil(20 - index / 2) - Math.floor(index / 8));
+    team.base = newBase;
+    team.border = team.border ?? "transparent";
+  });
 
-  const newBases = currentBases.map((oldBase) =>
-    Math.round(((oldBase - currentMin) / (currentMax - currentMin)) * (newMax - newMin) + newMin),
-  );
-
-  const teamsScaled = teams.map((team, index) => ({
-    ...team,
-    base: newBases[index],
-    border: team.border ?? "transparent",
-    fullname: team.fullname ?? team.name,
-  }));
-  teamsScaled.sort((teamA, teamB) => (teamA.base < teamB.base ? 1 : -1));
-  return teamsScaled;
+  return teamsSorted;
 }
