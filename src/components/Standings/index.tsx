@@ -2,17 +2,18 @@ import { For, Show, createResource } from "solid-js";
 
 import standingSorter from "@webfoot/core/engine/sorters/standing";
 import { Championship, Standing, Team } from "@webfoot/core/models";
-import type { IStanding } from "@webfoot/core/models/types";
+import type { IStanding, ITeam } from "@webfoot/core/models/types";
 import useDBReady from "@webfoot/hooks/useDBReady";
 import { arrayToHashMap } from "@webfoot/utils/array";
 
 import StandingLine from "../StandingLine";
 
 type Props = {
+  onTeamClick?: (teamId: ITeam["id"]) => unknown;
   year: number;
 };
 
-const Standings = ({ year }: Props) => {
+const Standings = ({ onTeamClick, year }: Props) => {
   const isDBReady = useDBReady();
   const [championships] = createResource(isDBReady, async () =>
     Championship.getMultipleByIndex("season", year),
@@ -56,6 +57,7 @@ const Standings = ({ year }: Props) => {
                         ...line,
                         teamName: teams()![line.teamId].name,
                       }}
+                      onClick={onTeamClick}
                     />
                   )}
                 </For>

@@ -39,7 +39,7 @@ const DashboardTableOfPlayers = () => {
 
   return (
     <TableOfPlayers
-      class="h-full overflow-y-auto"
+      class="h-full overflow-y-auto text-sm"
       players={club().players!}
       background={club().team!.background}
       foreground={club().team!.foreground}
@@ -50,7 +50,7 @@ const DashboardTableOfPlayers = () => {
       }}
       onSelectPlayer={onSelectPlayer}
       selectedPlayers={selectedPlayers}
-      withDividers
+      isDashboard
     />
   );
 };

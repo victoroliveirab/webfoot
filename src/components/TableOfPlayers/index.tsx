@@ -15,11 +15,11 @@ type Props = {
   background: Color;
   class?: string;
   foreground: Color;
+  isDashboard?: boolean;
   onClickPlayer?: (id: number) => void;
   onSelectPlayer?: (id: number) => void;
   players: IPlayer[];
   selectedPlayers?: Accessor<DashboardSquad> | Accessor<ArrayOfField<DashboardSquad, "id">>;
-  withDividers?: boolean;
 };
 
 function isSelectedPlayerIdsOnly(
@@ -49,12 +49,12 @@ function renderIndicator(
 export default function TableOfPlayers({
   background,
   class: className,
+  isDashboard = false,
   foreground,
   onClickPlayer,
   onSelectPlayer,
   players,
   selectedPlayers,
-  withDividers = false,
 }: Props) {
   const [selectedRow, setSelectedRow] = createSignal<number | null>(null);
 
@@ -63,14 +63,14 @@ export default function TableOfPlayers({
       <For each={players}>
         {(player, index) => (
           <>
-            {withDividers &&
+            {isDashboard &&
             index() > 0 &&
             players[index()].position !== players[index() - 1].position ? (
               <hr class="border-top" style={{ "border-color": background }} />
             ) : null}
             <DivInTeamColors
               role="row"
-              class="flex border border-dotted select-none font-bold text-sm"
+              class="flex border border-dotted select-none font-bold"
               background={foreground}
               foreground={background}
               selected={() => selectedRow() === index()}
@@ -79,17 +79,19 @@ export default function TableOfPlayers({
                 onClickPlayer?.(player.id);
               }}
             >
-              <div
-                role="cell"
-                class="w-6 text-center flex items-center pl-px"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setSelectedRow(index);
-                  onSelectPlayer?.(player.id);
-                }}
-              >
-                {renderIndicator(player, selectedPlayers)}
-              </div>
+              {isDashboard && (
+                <div
+                  role="cell"
+                  class="w-6 text-center flex items-center pl-px"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setSelectedRow(index);
+                    onSelectPlayer?.(player.id);
+                  }}
+                >
+                  {renderIndicator(player, selectedPlayers)}
+                </div>
+              )}
               <div role="cell" class="w-6">
                 {player.position}
               </div>
@@ -103,12 +105,16 @@ export default function TableOfPlayers({
                 <span>{player.power}</span>
                 <span>{player.suspensionPeriod > 0 ? "S" : ""}</span>
               </div>
-              <div role="cell" class="w-10 text-right">
-                {player.salary}
-              </div>
-              <div role="cell" class="w-10">
-                {player.available ? "" : "+"}
-              </div>
+              {isDashboard && (
+                <div role="cell" class="w-10 text-right">
+                  {player.salary}
+                </div>
+              )}
+              {isDashboard && (
+                <div role="cell" class="w-10">
+                  {player.available ? "" : "+"}
+                </div>
+              )}
             </DivInTeamColors>
           </>
         )}

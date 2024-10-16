@@ -10,6 +10,7 @@ export type StandingLineProps = {
     teamName: string;
   };
   foreground: ITeam["foreground"];
+  onClick?: (team: ITeam["id"]) => unknown;
 };
 
 const StandingLine = ({
@@ -18,6 +19,7 @@ const StandingLine = ({
   class: className = "",
   data,
   foreground,
+  onClick,
 }: StandingLineProps) => {
   return (
     <DivInTeamColors
@@ -26,6 +28,7 @@ const StandingLine = ({
       background={background}
       border={border}
       foreground={foreground}
+      onClick={() => onClick?.(data.teamId)}
     >
       <p class="flex-grow uppercase text-nowrap">{data.teamName}</p>
       <div class="flex gap-3">

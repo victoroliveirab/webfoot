@@ -2,6 +2,7 @@ import { useContext } from "solid-js";
 
 import Modal from "@webfoot/components/Modal";
 
+import ModalExplore from "./components/ModalExplore";
 import ModalOpponentTrainerHistory from "./components/ModalOpponentTrainerHistory";
 import ModalTrainerHistory from "./components/ModalTrainerHistory";
 import ModalOpponentCalendar from "./components/ModalOpponentCalendar";
@@ -20,6 +21,7 @@ const Modals = () => {
       modalOpponentTrainerHistoryOpened,
       modalStandingsOpened,
       modalTrainerHistoryOpened,
+      visibleTeam,
     },
   } = useContext(LayoutContext);
 
@@ -42,6 +44,9 @@ const Modals = () => {
       </Modal>
       <Modal show={modalOpponentTrainerHistoryOpened} class="z-10">
         <ModalOpponentTrainerHistory />
+      </Modal>
+      <Modal show={visibleTeam} class="z-30">
+        <ModalExplore />
       </Modal>
     </>
   );

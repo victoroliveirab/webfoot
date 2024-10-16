@@ -1,6 +1,6 @@
 import { Show, useContext } from "solid-js";
 
-import { DISCIPLINES_MAP } from "@webfoot/core/db/constants";
+import PlayerStats from "@webfoot/components/PlayerStats";
 
 import { ClubContext } from "../../../contexts/club";
 import { LayoutContext } from "../../../contexts/layout";
@@ -24,40 +24,7 @@ const PlayerTab = () => {
         </div>
         <div class="flex-1 flex flex-col mt-12 justify-between text-sm">
           <div class="pl-6 pr-10">
-            <p class="flex gap-6 mb-4">
-              Comportamento <span>{DISCIPLINES_MAP[player()!.discipline]}</span>
-            </p>
-            <p class="flex gap-6">
-              Golos esta época <span>{player()!.stats.seasonGoals}</span>
-            </p>
-            <div class="border border-w3c-lightgray mt-6 px-3 pb-3">
-              <h4 class="-mt-3 w-fit" style={{ "background-color": club().team!.background }}>
-                Historial
-              </h4>
-              <div role="row" class="field-row flex justify-between">
-                <span>Jogos</span>
-                <span>{player()!.stats.games}</span>
-              </div>
-              <div role="row" class="field-row flex justify-between">
-                <span>Golos</span>
-                <span>{player()!.stats.goals}</span>
-              </div>
-              <div role="row" class="field-row flex justify-between">
-                <span>Cartões vermelhos</span>
-                <span>{player()!.stats.redcards}</span>
-              </div>
-              <div role="row" class="field-row flex justify-between">
-                <span>Lesões</span>
-                <span>{player()!.stats.injuries}</span>
-              </div>
-            </div>
-          </div>
-          <div>
-            {player()!.suspensionPeriod > 0 && (
-              <span class="font-bold italic text-xs">
-                {`Suspenso por ${player()!.suspensionPeriod} ${player()!.suspensionPeriod === 1 ? "jogo" : "jogos"}`}
-              </span>
-            )}
+            <PlayerStats player={player} team={() => club().team} />
           </div>
           <Show when={player()!.available}>
             <button class="style-98 default w-48 h-8 !text-base mx-auto mb-4">
