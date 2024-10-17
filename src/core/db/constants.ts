@@ -1,3 +1,5 @@
+import type { Player } from "./types";
+
 export const TABLE_NAMES = {
   Championship: "championships",
   League: "leagues",
@@ -62,11 +64,18 @@ export const FIXTURES_8_TEAMS = [
 export const INITIAL_STADIUM_CAPACITY_BY_DIVISION = [60_000, 45_000, 30_000, 15_000, 10_000];
 export const INITIAL_TICKET_PRICE_BY_DIVISION = [40, 25, 15, 8, 5];
 
-export const DISCIPLINES_MAP: Record<number, string> = {
+export const DISCIPLINES_MAP: Record<Player["type"]["discipline"], string> = {
   0: "Sarrafeiro",
   2: "Caceteiro",
   4: "Caneleiro",
   6: "Cavalheiro",
   8: "Cordeirinho",
   10: "Fair Play",
+} as const;
+
+export const PLAYER_POSITIONS_MAP: Record<Player["type"]["position"], string> = {
+  G: "Guarda-redes",
+  D: "Defensor",
+  M: "Médio",
+  A: "Avançado",
 } as const;

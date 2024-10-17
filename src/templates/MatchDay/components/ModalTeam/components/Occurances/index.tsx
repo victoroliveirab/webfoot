@@ -32,7 +32,16 @@ const Occurances = ({ simulation }: Props) => {
                   <li class="flex gap-1">
                     <span>{occurance().time}'</span>
                     <span>{player.name}</span>
-                    <span>(red card)</span>
+                    <span>(cartão vermelho)</span>
+                  </li>
+                );
+              }
+              case "INJURY": {
+                return (
+                  <li class="flex gap-1">
+                    <span>{occurance().time}'</span>
+                    <span>{player.name}</span>
+                    <span>(lesionado)</span>
                   </li>
                 );
               }

@@ -48,9 +48,11 @@ export default function SimulationsProvider(props: ParentProps) {
           const simulator = new Simulator({
             awayMorale: round().teams![fixture.awayId].morale,
             awayInitialSquad: round().initialSquads![fixture.id].away,
+            awayTeamIsHumanControlled: round().humanTrainerTeams!.includes(fixture.awayId),
             fixture,
             homeMorale: round().teams![fixture.homeId].morale,
             homeInitialSquad: round().initialSquads![fixture.id].home,
+            homeTeamIsHumanControlled: round().humanTrainerTeams!.includes(fixture.homeId),
             stadiumCapacity: round().teams![fixture.homeId].currentStadiumCapacity,
           });
           simulations[fixture.id] = simulator;

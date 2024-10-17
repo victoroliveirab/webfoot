@@ -1,11 +1,13 @@
-import { useContext, type Accessor } from "solid-js";
+import { useContext, type Accessor, Show } from "solid-js";
 
 import TeamBlock from "@webfoot/components/TeamBlock";
-import Simulator from "@webfoot/core/engine/simulator";
+import type Simulator from "@webfoot/core/engine/simulator";
 import { getAllPlayersOnSimulator } from "@webfoot/core/engine/simulator/helpers";
 import type { IChampionship, IFixture } from "@webfoot/core/models/types";
 
+import LastOccurance from "./components/LastOccurance";
 import { RoundContext } from "../../../../contexts/round";
+import type { LastOccuranceData } from "../../../../types";
 
 type Props = {
   championshipId: IChampionship["id"];
@@ -23,12 +25,16 @@ const Match = ({ championshipId, fixtureId, onTeamClick, simulation }: Props) =>
   const homeTeam = teams[fixture.homeId];
   const awayTeam = teams[fixture.awayId];
 
-  const lastOccurance = () => simulation().lastOccurance;
-  const playerOfLastOccurance = () => {
-    if (!lastOccurance()) return;
-    const playerId = lastOccurance()!.playerId;
-    const players = getAllPlayersOnSimulator(simulation());
-    return players.find(({ id }) => id === playerId);
+  const lastOccuranceData: Accessor<LastOccuranceData | null> = () => {
+    const lastOccurance = simulation().lastOccurance;
+    if (!lastOccurance) return null;
+    const player = getAllPlayersOnSimulator(simulation()).find(
+      ({ id }) => id === lastOccurance.playerId,
+    )!;
+    return {
+      ...lastOccurance,
+      player,
+    };
   };
 
   return (
@@ -55,11 +61,9 @@ const Match = ({ championshipId, fixtureId, onTeamClick, simulation }: Props) =>
         {awayTeam.name}
       </TeamBlock>
       <div class="flex items-center gap-1 text-w3c-yellow overflow-hidden">
-        {lastOccurance()?.type === "REDCARD" ? (
-          <div class="h-4 w-4 bg-w3c-red shrink-0"></div>
-        ) : null}
-        <span class="text-nowrap overflow-hidden">{playerOfLastOccurance()?.name}</span>
-        {lastOccurance()?.time && <span>{`${lastOccurance()!.time}`}&#39;</span>}
+        <Show when={lastOccuranceData}>
+          <LastOccurance data={lastOccuranceData as Accessor<LastOccuranceData>} />
+        </Show>
       </div>
     </li>
   );

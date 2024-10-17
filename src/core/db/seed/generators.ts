@@ -10,6 +10,7 @@ import {
   TEAM_MAX_POWER,
   TEAM_MIN_POWER,
 } from "./constants";
+import { normalRandomInt } from "@webfoot/utils/math";
 
 // Copied from https://github.com/faker-js/faker/tree/next/src/locales/pt_BR/person
 const FIRST_NAMES = [
@@ -143,6 +144,10 @@ function playerPowerByTeamBasePower(teamBasePower: number) {
   return power;
 }
 
+function playerInjuryProneness() {
+  return normalRandomInt(0, 11);
+}
+
 export function generateRandomPlayer(teamBasePower: number, position: IPlayer["position"]) {
   const twoNames = Math.random() < 0.2;
   const firstName = pickRandom(FIRST_NAMES);
@@ -151,6 +156,9 @@ export function generateRandomPlayer(teamBasePower: number, position: IPlayer["p
   const power = playerPowerByTeamBasePower(teamBasePower);
 
   return {
+    internal: {
+      injuryProneness: playerInjuryProneness(),
+    },
     name,
     position,
     power,

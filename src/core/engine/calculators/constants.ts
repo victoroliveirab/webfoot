@@ -25,6 +25,9 @@ export const MORALE_MULTIPLIER = 0.8;
 export const DISCIPLINE_THRESHOLD = 11.0;
 export const RED_CARD_THRESHOLD = 0.0005;
 
+export const INJURY_BASELINE = 0.00046;
+export const INJURY_PRONENESS_MULTIPLIER = 0.0002;
+
 export const BASE_TIME_FACTOR = 0.05;
 export const MIN_DAYS_SUSPENSION = 1;
 export const MAX_DAYS_SUSPENSION = 4;

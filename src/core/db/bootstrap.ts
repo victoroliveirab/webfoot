@@ -24,7 +24,8 @@ import {
   TeamBudget,
   Trainer,
 } from "../models";
-import { IChampionship, IPlayer, IStanding, ITeam } from "../models/types";
+import type { IChampionship, IPlayer, IStanding, ITeam } from "../models/types";
+import type { Color } from "./types";
 
 /**
  * Receives the new save name and bootstraps the database and tables
@@ -182,6 +183,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
           position: playerPrototype.position,
           star: playerPrototype.star,
           power: playerPrototype.power,
+          internal: playerPrototype.internal,
           stats: {
             games: 0,
             goals: 0,
@@ -193,6 +195,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
           available: true,
           discipline: randomInt(0, 6) * 2,
           suspensionPeriod: 0,
+          injuryPeriod: 0,
         };
         const playerId = await Player.add(player);
         players.push({
@@ -305,5 +308,5 @@ function scaleTeams(teams: TeamSeed[]) {
     team.border = team.border ?? "transparent";
   });
 
-  return teamsSorted;
+  return teamsSorted as Array<Omit<TeamSeed, "border"> & { border: Color | "transparent" }>;
 }

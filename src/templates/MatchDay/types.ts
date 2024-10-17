@@ -1,4 +1,5 @@
-import type { IFixture, ITeam } from "@webfoot/core/models/types";
+import type Simulator from "@webfoot/core/engine/simulator";
+import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
 
 export type ModalTeamInfo = {
   fixtureId: IFixture["id"];
@@ -6,9 +7,12 @@ export type ModalTeamInfo = {
   teamId: ITeam["id"];
 } | null;
 
-// For now, let's ignore this and only pause the game to let player do whatever they want
-// export type RequiredHumanAction = {
-//   type: "GOALKEEPER_SENT_OFF" | "PLAYER_INJURED" | "HALFTIME" | "EXTRATIME";
-//   playerId?: IPlayer["id"];
-//   teamId: ITeam["id"];
-// };
+export type ModalInjuryInfo = {
+  fixtureId: IFixture["id"];
+  playerId: IPlayer["id"];
+  teamId: ITeam["id"];
+} | null;
+
+export type LastOccuranceData = Simulator["lastOccurance"] & {
+  player: IPlayer;
+};

@@ -5,10 +5,25 @@ import Clock from "@webfoot/components/Clock";
 import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
+import ModalInjury from "./components/ModalInjury";
 import ModalTeam from "./components/ModalTeam";
 import RoundProvider, { RoundContext } from "./contexts/round";
-import type { ModalTeamInfo } from "./types";
 import SimulationsProvider, { SimulationsContext } from "./contexts/simulations";
+import type { ModalInjuryInfo, ModalTeamInfo } from "./types";
+
+type HumanActionRequired =
+  | {
+      type: "HALFTIME";
+      data: NonNullable<ModalTeamInfo>;
+    }
+  | {
+      type: "INJURY";
+      data: NonNullable<ModalInjuryInfo>;
+    }
+  | {
+      type: "REDCARD";
+      data: NonNullable<ModalTeamInfo>;
+    };
 
 const FPS = 20;
 const TIMEOUT = 1000 / FPS;
@@ -21,7 +36,8 @@ const MatchDay: Component = () => {
   const [clock, setClock] = createSignal(0);
   const [timer, setTimer] = createSignal<number | null>(null);
   const [teamModalInfo, setTeamModalInfo] = createSignal<ModalTeamInfo>(null);
-  let requireHumanActions: ModalTeamInfo[] = [];
+  const [injuryModalInfo, setInjuryModalInfo] = createSignal<ModalInjuryInfo>(null);
+  let requireHumanActions: HumanActionRequired[] = [];
 
   createEffect(() => {
     if (simulationsReady() && clock() === 0) setTimer(setInterval(tick, TIMEOUT));
@@ -30,25 +46,46 @@ const MatchDay: Component = () => {
   function tick() {
     const fixtureSimulations = Object.values(simulations());
     const now = clock();
-    const isHalfTime = now === 45;
-    const triggerRequiredHumanAction: NonNullable<ModalTeamInfo>[] = [];
     for (const simulation of fixtureSimulations) {
       const newSimulationState = simulation.tick();
-      // If it is halftime, we are opening all the modals anyway, so we can skip this
-      if (!isHalfTime && newSimulationState.newStories.length > 0) {
-        for (const story of newSimulationState.newStories) {
-          const isStoryToTriggerInteraction = story.type === "REDCARD" || story.type === "INJURY";
+      if (newSimulationState.newStories.length > 0) {
+        const storiesThatNeedIntervention = newSimulationState.newStories.filter(({ type }) =>
+          ["INJURY", "REDCARD"].includes(type),
+        );
+        for (const story of storiesThatNeedIntervention) {
           const storyPlayerTeam = simulation.getPlayer(story.playerId)!.teamId;
           const isTeamControlledByHuman = round().humanTrainerTeams!.includes(storyPlayerTeam);
-          if (isStoryToTriggerInteraction && isTeamControlledByHuman) {
-            triggerRequiredHumanAction.push({
-              teamId: storyPlayerTeam,
-              oppositionId:
-                simulation.fixture.homeId === storyPlayerTeam
-                  ? simulation.fixture.awayId
-                  : simulation.fixture.homeId,
-              fixtureId: simulation.fixture.id,
-            });
+          if (!isTeamControlledByHuman) continue;
+          switch (story.type) {
+            case "REDCARD": {
+              requireHumanActions.push({
+                type: "REDCARD",
+                data: {
+                  teamId: storyPlayerTeam,
+                  oppositionId:
+                    simulation.fixture.homeId === storyPlayerTeam
+                      ? simulation.fixture.awayId
+                      : simulation.fixture.homeId,
+                  fixtureId: simulation.fixture.id,
+                },
+              });
+              break;
+            }
+            case "INJURY": {
+              requireHumanActions.push({
+                type: "INJURY",
+                data: {
+                  fixtureId: simulation.fixture.id,
+                  playerId: story.playerId,
+                  teamId: storyPlayerTeam,
+                },
+              });
+              break;
+            }
+            default: {
+              console.error({ story, newSimulationState, simulation });
+              throw new Error("You messed something up");
+            }
           }
         }
       }
@@ -68,33 +105,64 @@ const MatchDay: Component = () => {
             simulation.fixture.homeId === teamId || simulation.fixture.awayId === teamId,
         )!;
         const oppositionId = fixture.homeId === teamId ? fixture.awayId : fixture.homeId;
-        triggerRequiredHumanAction.push({
-          fixtureId: fixture.id,
-          oppositionId,
-          teamId,
+        requireHumanActions.push({
+          type: "HALFTIME",
+          data: {
+            fixtureId: fixture.id,
+            oppositionId,
+            teamId,
+          },
         });
       }
-      requireHumanActions = triggerRequiredHumanAction;
-    } else if (triggerRequiredHumanAction.length > 0) {
+    } else if (requireHumanActions.length > 0) {
       clearInterval(timer()!);
-      requireHumanActions = triggerRequiredHumanAction;
     }
     if (requireHumanActions.length === 0) {
       setClock(now + 1);
-    } else setTeamModalInfo(requireHumanActions.pop()!);
-    triggerUpdate();
+      triggerUpdate();
+    } else {
+      triggerUpdate();
+      handlePlayerActionRequired();
+    }
+  }
+
+  function handlePlayerActionRequired() {
+    const actionRequired = requireHumanActions.shift();
+    if (!actionRequired) {
+      setTeamModalInfo(null);
+      setInjuryModalInfo(null);
+      return;
+    }
+    if (actionRequired.type === "INJURY") {
+      setInjuryModalInfo(actionRequired.data);
+      setTeamModalInfo(null);
+    } else if (actionRequired.type === "REDCARD" || actionRequired.type === "HALFTIME") {
+      setTeamModalInfo(actionRequired.data);
+      setInjuryModalInfo(null);
+    }
   }
 
   function handleCloseTeamModal() {
+    setTeamModalInfo(null);
     if (requireHumanActions.length > 0) {
-      const nextTeamInfo = requireHumanActions.pop()!;
-      setTeamModalInfo(nextTeamInfo);
-    } else {
-      if (clock() < 90) {
-        setTimer(setInterval(tick, TIMEOUT));
-        setClock(clock() + 1);
-      }
-      setTeamModalInfo(null);
+      handlePlayerActionRequired();
+      return;
+    }
+    if (clock() < 90) {
+      setTimer(setInterval(tick, TIMEOUT));
+      setClock(clock() + 1);
+    }
+  }
+
+  function handleCloseInjuryModal() {
+    setInjuryModalInfo(null);
+    if (requireHumanActions.length > 0) {
+      handlePlayerActionRequired();
+      return;
+    }
+    if (clock() < 90) {
+      setTimer(setInterval(tick, TIMEOUT));
+      setClock(clock() + 1);
     }
   }
 
@@ -127,6 +195,7 @@ const MatchDay: Component = () => {
         )}
       </For>
       <ModalTeam info={teamModalInfo} onClose={handleCloseTeamModal} />
+      <ModalInjury info={injuryModalInfo} onClose={handleCloseInjuryModal} />
     </Show>
   );
 };

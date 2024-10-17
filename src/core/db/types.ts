@@ -70,6 +70,9 @@ type PlayerStats = {
   injuries: number;
   seasonGoals: number;
 };
+type PlayerInternalParameters = {
+  injuryProneness: number;
+};
 export type Player = ORMBlueprint<
   {
     id: ID;
@@ -83,6 +86,8 @@ export type Player = ORMBlueprint<
     star: boolean;
     stats: PlayerStats;
     suspensionPeriod: number;
+    injuryPeriod: number;
+    internal: PlayerInternalParameters;
   },
   "teamId" | "name"
 >;
