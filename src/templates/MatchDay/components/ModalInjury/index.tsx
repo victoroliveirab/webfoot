@@ -61,9 +61,15 @@ const ModalInjury = ({ info: infoIds, onClose }: Props) => {
     onClose();
   }
 
+  function onLayoutClose() {
+    simulation()!.removePlayingPlayer(team()!.id, player()!.id);
+    triggerUpdate();
+    onClose();
+  }
+
   return (
     <Modal show={infoIds} class="w-[390px] h-[220px]">
-      <Layout class="w-full h-full" title={title} onClickClose={onClose}>
+      <Layout class="w-full h-full" title={title} onClickClose={onLayoutClose}>
         <Show when={team}>
           <DivInTeamColors
             class="w-full h-full text-sm flex flex-col justify-between p-2"

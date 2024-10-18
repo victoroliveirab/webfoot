@@ -8,6 +8,7 @@ import type {
   IStanding,
 } from "@webfoot/core/models/types";
 
+import calculateInjuredTime from "../calculators/injured-time";
 import calculateSuspensionTime from "../calculators/suspension-time";
 import type Simulator from "../simulator";
 
@@ -40,9 +41,26 @@ async function decreaseSuspensionPeriods() {
   await Promise.all(promises);
 }
 
+async function decreaseInjuryPeriods() {
+  const players = await Player.getAll();
+  const promises = [];
+  for (const player of players) {
+    if (player.injuryPeriod > 0) {
+      promises.push(
+        Player.patch({
+          id: player.id,
+          injuryPeriod: player.injuryPeriod - 1,
+        }),
+      );
+    }
+  }
+  await Promise.all(promises);
+}
+
 async function processFixtureOccurances(simulation: Simulator) {
   const impactedPlayers = new Map<IPlayer["id"], UpdateStruct>();
   const suspensionPeriods = new Map<IPlayer["id"], number>();
+  const injuredPeriods = new Map<IPlayer["id"], number>();
 
   const { occurances } = simulation;
   for (const occurance of occurances) {
@@ -62,6 +80,16 @@ async function processFixtureOccurances(simulation: Simulator) {
         suspensionPeriods.set(playerId, suspensionTime);
         break;
       }
+      case "INJURY": {
+        const player = await Player.getById(playerId);
+        const injuredTime = calculateInjuredTime(player);
+        impactedPlayers.set(playerId, {
+          ...impactedPlayers.get(playerId)!,
+          injury: true,
+        });
+        injuredPeriods.set(playerId, injuredTime);
+        break;
+      }
       case "GOAL_REGULAR":
       case "PENALTI_SCORED": {
         impactedPlayers.set(playerId, {
@@ -75,6 +103,7 @@ async function processFixtureOccurances(simulation: Simulator) {
 
   return {
     impactedPlayers,
+    injuredPeriods,
     suspensionPeriods,
   };
 }
@@ -82,6 +111,7 @@ async function processFixtureOccurances(simulation: Simulator) {
 async function processPlayersUpdates(
   simulation: Simulator,
   impactedPlayers: Map<IPlayer["id"], UpdateStruct>,
+  injuredPeriods: Map<IPlayer["id"], number>,
   suspensionPeriods: Map<IPlayer["id"], number>,
 ) {
   const { squads } = simulation;
@@ -101,6 +131,9 @@ async function processPlayersUpdates(
     };
     if (suspensionPeriods.get(player.id)) {
       patchObj.suspensionPeriod = suspensionPeriods.get(player.id);
+    }
+    if (injuredPeriods.get(player.id)) {
+      patchObj.injuryPeriod = injuredPeriods.get(player.id);
     }
     playerPromises.push(
       Player.patch({
@@ -209,12 +242,15 @@ async function processStandings(fixtures: IFixture["id"][]) {
 }
 
 export default async function postRoundProcessor(simulations: Simulator[]) {
+  // OPTIMIZE: call get all players here and use it throughout the processors below
   await decreaseSuspensionPeriods();
+  await decreaseInjuryPeriods();
   const processedFixtures: IFixture["id"][] = [];
   const processedSimulations: ISimulationRecord["id"][] = [];
   for (const simulation of simulations) {
-    const { suspensionPeriods, impactedPlayers } = await processFixtureOccurances(simulation);
-    await processPlayersUpdates(simulation, impactedPlayers, suspensionPeriods);
+    const { suspensionPeriods, impactedPlayers, injuredPeriods } =
+      await processFixtureOccurances(simulation);
+    await processPlayersUpdates(simulation, impactedPlayers, injuredPeriods, suspensionPeriods);
     await processTeamsFinances(simulation);
     await processFixtureEntity(simulation);
     processedSimulations.push(

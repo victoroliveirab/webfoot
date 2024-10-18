@@ -103,7 +103,9 @@ export default function TableOfPlayers({
               </div>
               <div role="cell" class="flex-1 flex gap-3">
                 <span>{player.power}</span>
-                <span>{player.suspensionPeriod > 0 ? "S" : ""}</span>
+                <span>
+                  {player.suspensionPeriod > 0 ? "S" : player.injuryPeriod > 0 ? "L" : ""}
+                </span>
               </div>
               {isDashboard && (
                 <div role="cell" class="w-10 text-right">

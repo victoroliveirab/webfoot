@@ -21,14 +21,17 @@ const Selection = () => {
     if (substitutes.length > maxAllowedSubs) return false;
     let numberOfGKs = 0;
     let numberOfSuspendeds = 0;
+    let numberOfInjureds = 0;
     for (const playerEntity of firstTeam) {
       if (playerEntity.position === "G") ++numberOfGKs;
       if (playerEntity.suspensionPeriod > 0) ++numberOfSuspendeds;
+      if (playerEntity.injuryPeriod > 0) ++numberOfInjureds;
     }
     for (const playerEntity of substitutes) {
       if (playerEntity.suspensionPeriod > 0) ++numberOfSuspendeds;
+      if (playerEntity.injuryPeriod > 0) ++numberOfInjureds;
     }
-    return numberOfGKs === 1 && numberOfSuspendeds === 0;
+    return numberOfGKs === 1 && numberOfSuspendeds === 0 && numberOfInjureds === 0;
   };
 
   function submit() {

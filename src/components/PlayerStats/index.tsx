@@ -43,6 +43,11 @@ export default function PlayerStats({ player, team }: Props) {
           {`Suspenso por ${player()!.suspensionPeriod} ${player()!.suspensionPeriod === 1 ? "jogo" : "jogos"}`}
         </p>
       )}
+      {player() && player()!.injuryPeriod > 0 && (
+        <p class="font-bold italic text-xs mt-2">
+          {`Lesionado por ${player()!.injuryPeriod} ${player()!.injuryPeriod === 1 ? "jogo" : "jogos"}`}
+        </p>
+      )}
     </>
   );
 }
