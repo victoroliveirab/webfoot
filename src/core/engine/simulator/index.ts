@@ -40,8 +40,8 @@ class Simulator {
   fixture: IFixture;
   private homeSquadRecord: SquadRecord;
   private awaySquadRecord: SquadRecord;
-  private homeMorale: number;
-  private awayMorale: number;
+  readonly homeMorale: number;
+  readonly awayMorale: number;
   private clock: number = 0;
   readonly homeTeamIsHumanControlled: boolean;
   readonly awayTeamIsHumanControlled: boolean;

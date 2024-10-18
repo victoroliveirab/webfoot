@@ -26,3 +26,9 @@ export function randomWeighted(minNumber: number, maxNumber: number, skewFactor:
   const skewedValue = Math.pow(Math.random(), 1 - skewFactor);
   return Math.floor(minNumber + (skewedValue * maxNumber - minNumber));
 }
+
+export function clamp(value: number, min: number, max: number) {
+  if (value < min) return min;
+  if (value > max) return max;
+  return value;
+}

@@ -1,4 +1,4 @@
-import { Fixture, Player, SimulationRecord, Standing, TeamBudget } from "@webfoot/models";
+import { Fixture, Player, SimulationRecord, Standing, Team, TeamBudget } from "@webfoot/models";
 
 import type {
   IChampionship,
@@ -7,7 +7,15 @@ import type {
   ISimulationRecord,
   IStanding,
 } from "@webfoot/core/models/types";
+import { clamp } from "@webfoot/utils/math";
 
+import {
+  MORALE_BOOST_DRAW,
+  MORALE_BOOST_LOST,
+  MORALE_BOOST_WIN,
+  MORALE_MAX,
+  MORALE_MIN,
+} from "./constants";
 import calculateInjuredTime from "../calculators/injured-time";
 import calculateSuspensionTime from "../calculators/suspension-time";
 import type Simulator from "../simulator";
@@ -241,6 +249,48 @@ async function processStandings(fixtures: IFixture["id"][]) {
   return standingsByChampionship;
 }
 
+async function processMoraleChange(simulation: Simulator) {
+  const [homeGoals, awayGoals] = simulation.currentScoreline;
+  const homeWon = homeGoals > awayGoals;
+  const homeLost = homeGoals < awayGoals;
+  const awayWon = awayGoals > homeGoals;
+  const awayLost = awayGoals < homeGoals;
+
+  if (homeWon) {
+    await Team.patch({
+      id: simulation.fixture.homeId,
+      morale: clamp(simulation.homeMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
+    });
+  } else if (homeLost) {
+    await Team.patch({
+      id: simulation.fixture.homeId,
+      morale: clamp(simulation.homeMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
+    });
+  } else {
+    await Team.patch({
+      id: simulation.fixture.homeId,
+      morale: clamp(simulation.homeMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
+    });
+  }
+
+  if (awayWon) {
+    await Team.patch({
+      id: simulation.fixture.awayId,
+      morale: clamp(simulation.awayMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
+    });
+  } else if (awayLost) {
+    await Team.patch({
+      id: simulation.fixture.awayId,
+      morale: clamp(simulation.awayMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
+    });
+  } else {
+    await Team.patch({
+      id: simulation.fixture.awayId,
+      morale: clamp(simulation.awayMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
+    });
+  }
+}
+
 export default async function postRoundProcessor(simulations: Simulator[]) {
   // OPTIMIZE: call get all players here and use it throughout the processors below
   await decreaseSuspensionPeriods();
@@ -253,6 +303,7 @@ export default async function postRoundProcessor(simulations: Simulator[]) {
     await processPlayersUpdates(simulation, impactedPlayers, injuredPeriods, suspensionPeriods);
     await processTeamsFinances(simulation);
     await processFixtureEntity(simulation);
+    await processMoraleChange(simulation);
     processedSimulations.push(
       await SimulationRecord.add({
         fixtureId: simulation.fixture.id,
