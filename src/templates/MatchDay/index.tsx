@@ -2,7 +2,7 @@ import { useContext, type Component, createSignal, For, Show, createEffect } fro
 import { useNavigate } from "@solidjs/router";
 
 import Clock from "@webfoot/components/Clock";
-import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
+import PostRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
 import ModalInjury from "./components/ModalInjury";
@@ -168,7 +168,8 @@ const MatchDay: Component = () => {
 
   async function finishRound() {
     const simulationEntities = Object.values(simulations());
-    await postRoundProcessor(simulationEntities);
+    const processor = new PostRoundProcessor(simulationEntities);
+    await processor.process();
     navigate("/standings");
   }
 

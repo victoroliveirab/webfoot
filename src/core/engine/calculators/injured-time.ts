@@ -13,6 +13,6 @@ export default function calculateInjuredTime(player: IPlayer) {
   const combinedFactor =
     injuryProneness * INJURY_PRONENESS_TIME_FACTOR_MULTIPLIER +
     previousInjuries * PREVIOUS_INJURIES_FACTOR_MULTIPLIER;
-  const time = normalRandomInt(1, Math.ceil(combinedFactor));
+  const time = normalRandomInt(1, Math.max(2, Math.ceil(combinedFactor)));
   return time;
 }

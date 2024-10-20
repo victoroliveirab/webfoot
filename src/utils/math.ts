@@ -32,3 +32,13 @@ export function clamp(value: number, min: number, max: number) {
   if (value > max) return max;
   return value;
 }
+
+export function quadraticFunctionCalc(a: number, b: number, c: number, x: number) {
+  return a * Math.pow(x, 2) + b * x + c;
+}
+
+export function quadraticFunctionFactory(a: number, b: number, c: number) {
+  return function calculate(x: number) {
+    return quadraticFunctionCalc(a, b, c, x);
+  };
+}

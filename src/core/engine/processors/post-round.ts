@@ -1,5 +1,4 @@
 import { Fixture, Player, SimulationRecord, Standing, Team, TeamBudget } from "@webfoot/models";
-
 import type {
   IChampionship,
   IFixture,
@@ -7,7 +6,9 @@ import type {
   ISimulationRecord,
   IStanding,
 } from "@webfoot/core/models/types";
+import { arrayToHashMap } from "@webfoot/utils/array";
 import { clamp } from "@webfoot/utils/math";
+import type { HashMap, PatchObject } from "@webfoot/utils/types";
 
 import {
   MORALE_BOOST_DRAW,
@@ -21,305 +22,271 @@ import { calculatePlayerPlayedTime } from "../calculators/player-played-time";
 import { calculatePlayerPowerChangePostFixture } from "../calculators/player-power-change";
 import calculateSuspensionTime from "../calculators/suspension-time";
 import type Simulator from "../simulator";
+import { getAllPlayersOnSimulator } from "../simulator/helpers";
 
 type UpdateStruct = {
-  goals: number;
-  injury: boolean;
-  redcard: boolean;
+  playerId: IPlayer["id"];
+  goals?: number;
+  injuryPeriod?: number;
+  suspensionPeriod?: number;
 };
 
-const defaultObject = {
-  goals: 0,
-  injury: false,
-  redcard: false,
-  suspensionPeriod: 0,
-};
+export default class PostRoundProcessor {
+  protected players!: HashMap<IPlayer>;
+  protected processedFixtures: HashMap<IFixture> = [];
+  protected processedSimulations: ISimulationRecord["id"][] = [];
 
-async function decreaseSuspensionPeriods() {
-  const players = await Player.getAll();
-  const promises = [];
-  for (const player of players) {
-    if (player.suspensionPeriod > 0) {
-      promises.push(
-        Player.patch({
-          id: player.id,
+  constructor(private readonly simulations: Simulator[]) {}
+
+  private async prepare() {
+    const allPlayers = await Player.getAll();
+    this.players = arrayToHashMap(allPlayers);
+  }
+
+  private async decreaseUnavailablePeriods() {
+    const promises: unknown[] = [];
+    for (const player of Object.values(this.players)) {
+      let patchObj: Partial<IPlayer> | undefined;
+      if (player.suspensionPeriod > 0) {
+        patchObj = {
           suspensionPeriod: player.suspensionPeriod - 1,
+        };
+      }
+      if (player.injuryPeriod > 0) {
+        if (!patchObj) patchObj = {};
+        patchObj.injuryPeriod = player.injuryPeriod - 1;
+      }
+      if (patchObj) {
+        this.players[player.id].suspensionPeriod = patchObj.suspensionPeriod ?? 0;
+        this.players[player.id].injuryPeriod = patchObj.injuryPeriod ?? 0;
+        promises.push(Player.update(this.players[player.id]));
+      }
+    }
+    await Promise.all(promises);
+  }
+
+  private preProcessFixtureOccurances(simulation: Simulator) {
+    const { occurances } = simulation;
+    const impactedPlayers = new Map<IPlayer["id"], UpdateStruct>();
+    for (const { playerId, time, type } of occurances) {
+      if (!impactedPlayers.get(playerId)) {
+        impactedPlayers.set(playerId, {
+          playerId: playerId,
+        });
+      }
+      const obj = impactedPlayers.get(playerId)!;
+      switch (type) {
+        case "REDCARD": {
+          const suspensionTime = calculateSuspensionTime(this.players[playerId], time);
+          impactedPlayers.set(playerId, {
+            ...obj,
+            suspensionPeriod: suspensionTime,
+          });
+          break;
+        }
+        case "INJURY": {
+          const injuryTime = calculateInjuredTime(this.players[playerId]);
+          impactedPlayers.set(playerId, {
+            ...obj,
+            injuryPeriod: injuryTime,
+          });
+          break;
+        }
+        case "GOAL_REGULAR":
+        case "PENALTI_SCORED": {
+          impactedPlayers.set(playerId, {
+            ...obj,
+            goals: obj.goals ? obj.goals + 1 : 1,
+          });
+          break;
+        }
+      }
+    }
+    return impactedPlayers;
+  }
+
+  private async updatePlayers(
+    simulation: Simulator,
+    playersUpdates: Map<IPlayer["id"], UpdateStruct>,
+  ) {
+    const players = getAllPlayersOnSimulator(simulation);
+    const promises: Promise<IPlayer["id"]>[] = [];
+    for (const player of players) {
+      const playerUpdates = playersUpdates.get(player.id) ?? { playerId: player.id };
+      const patchObj: PatchObject<IPlayer> = {
+        id: playerUpdates.playerId,
+        stats: {
+          seasonGoals: player.stats.seasonGoals + (playerUpdates.goals ?? 0),
+          games: player.stats.games + 1,
+          goals: player.stats.goals + (playerUpdates.goals ?? 0),
+          injuries: playerUpdates.injuryPeriod ? player.stats.injuries + 1 : player.stats.injuries,
+          redcards: playerUpdates.suspensionPeriod
+            ? player.stats.redcards + 1
+            : player.stats.redcards,
+        },
+      };
+      if (playerUpdates.suspensionPeriod) {
+        patchObj.suspensionPeriod = playerUpdates.suspensionPeriod;
+      }
+      if (playerUpdates.injuryPeriod) {
+        patchObj.injuryPeriod = playerUpdates.injuryPeriod;
+      }
+      const playedTime = calculatePlayerPlayedTime(simulation, player);
+      patchObj.power = calculatePlayerPowerChangePostFixture(
+        player,
+        playedTime,
+        patchObj.injuryPeriod,
+      );
+      promises.push(Player.patch(patchObj));
+    }
+    await Promise.all(promises);
+  }
+
+  private async updateTeamsFinances(simulation: Simulator) {
+    const { awayId, homeId } = simulation.fixture;
+    await TeamBudget.creditAttendeesMoney(homeId, simulation.attendees);
+
+    await TeamBudget.debitPlayersSalaries(awayId);
+    await TeamBudget.debitPlayersSalaries(homeId);
+  }
+
+  private async updateFixtureEntity(simulation: Simulator) {
+    const [homeGoals, awayGoals] = simulation.currentScoreline;
+    const { attendees } = simulation;
+    const fixture = await Fixture.getById(simulation.fixture.id);
+    fixture.homeGoals = homeGoals;
+    fixture.awayGoals = awayGoals;
+    fixture.attendees = attendees;
+    fixture.occurred = true;
+    await Fixture.update(fixture);
+    this.processedFixtures[fixture.id] = fixture;
+  }
+
+  private async updateTeamsMorale(simulation: Simulator) {
+    const [homeGoals, awayGoals] = simulation.currentScoreline;
+    const homeWon = homeGoals > awayGoals;
+    const homeLost = homeGoals < awayGoals;
+    const awayWon = awayGoals > homeGoals;
+    const awayLost = awayGoals < homeGoals;
+
+    if (homeWon) {
+      await Team.patch({
+        id: simulation.fixture.homeId,
+        morale: clamp(simulation.homeMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
+      });
+    } else if (homeLost) {
+      await Team.patch({
+        id: simulation.fixture.homeId,
+        morale: clamp(simulation.homeMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
+      });
+    } else {
+      await Team.patch({
+        id: simulation.fixture.homeId,
+        morale: clamp(simulation.homeMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
+      });
+    }
+
+    if (awayWon) {
+      await Team.patch({
+        id: simulation.fixture.awayId,
+        morale: clamp(simulation.awayMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
+      });
+    } else if (awayLost) {
+      await Team.patch({
+        id: simulation.fixture.awayId,
+        morale: clamp(simulation.awayMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
+      });
+    } else {
+      await Team.patch({
+        id: simulation.fixture.awayId,
+        morale: clamp(simulation.awayMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
+      });
+    }
+  }
+
+  private async updateStandings() {
+    const standingsByChampionship = new Map<IChampionship["id"], IStanding[]>();
+    for (const fixture of Object.values(this.processedFixtures)) {
+      const { awayGoals, awayId, championshipId, homeGoals, homeId } = fixture;
+      if (!standingsByChampionship.get(championshipId)) {
+        const standings = await Standing.getMultipleByIndex("championshipId", championshipId);
+        standingsByChampionship.set(championshipId, standings);
+      }
+
+      const standings = standingsByChampionship.get(championshipId)!;
+      const homeStanding = standings.find(({ teamId }) => teamId === homeId)!;
+      const awayStanding = standings.find(({ teamId }) => teamId === awayId)!;
+
+      const homePoints = homeGoals > awayGoals ? 3 : homeGoals < awayGoals ? 0 : 1;
+      const awayPoints = awayGoals > homeGoals ? 3 : awayGoals < homeGoals ? 0 : 1;
+
+      homeStanding.points = homeStanding.points + homePoints;
+      homeStanding.goalsPro = homeStanding.goalsPro + homeGoals;
+      homeStanding.goalsAgainst = homeStanding.goalsAgainst + awayGoals;
+      awayStanding.points = awayStanding.points + awayPoints;
+      awayStanding.goalsPro = awayStanding.goalsPro + awayGoals;
+      awayStanding.goalsAgainst = awayStanding.goalsAgainst + homeGoals;
+
+      switch (homePoints) {
+        case 3: {
+          homeStanding.wins = homeStanding.wins + 1;
+          break;
+        }
+        case 1: {
+          homeStanding.draws = homeStanding.draws + 1;
+          break;
+        }
+        case 0: {
+          homeStanding.losses = homeStanding.losses + 1;
+          break;
+        }
+        default: {
+          console.error(homeStanding);
+        }
+      }
+
+      switch (awayPoints) {
+        case 3: {
+          awayStanding.wins = awayStanding.wins + 1;
+          break;
+        }
+        case 1: {
+          awayStanding.draws = awayStanding.draws + 1;
+          break;
+        }
+        case 0: {
+          awayStanding.losses = awayStanding.losses + 1;
+          break;
+        }
+        default: {
+          console.error(awayStanding);
+        }
+      }
+
+      await Standing.update(homeStanding);
+      await Standing.update(awayStanding);
+    }
+  }
+
+  async process() {
+    await this.prepare();
+    await this.decreaseUnavailablePeriods();
+    for (const simulation of this.simulations) {
+      const playersUpdates = this.preProcessFixtureOccurances(simulation);
+      await this.updatePlayers(simulation, playersUpdates);
+      await this.updateTeamsFinances(simulation);
+      await this.updateFixtureEntity(simulation);
+      this.processedSimulations.push(
+        await SimulationRecord.add({
+          fixtureId: simulation.fixture.id,
+          story: simulation.occurances,
         }),
       );
     }
-  }
-  await Promise.all(promises);
-}
-
-async function decreaseInjuryPeriods() {
-  const players = await Player.getAll();
-  const promises = [];
-  for (const player of players) {
-    if (player.injuryPeriod > 0) {
-      promises.push(
-        Player.patch({
-          id: player.id,
-          injuryPeriod: player.injuryPeriod - 1,
-        }),
-      );
-    }
-  }
-  await Promise.all(promises);
-}
-
-async function processFixtureOccurances(simulation: Simulator) {
-  const impactedPlayers = new Map<IPlayer["id"], UpdateStruct>();
-  const suspensionPeriods = new Map<IPlayer["id"], number>();
-  const injuredPeriods = new Map<IPlayer["id"], number>();
-
-  const { occurances } = simulation;
-  for (const occurance of occurances) {
-    const playerId = occurance.playerId;
-    if (!impactedPlayers.get(playerId)) {
-      impactedPlayers.set(playerId, defaultObject);
-    }
-    switch (occurance.type) {
-      case "REDCARD": {
-        // REFACTOR: make occurances save Player instead of id(?)
-        const player = await Player.getById(playerId);
-        const suspensionTime = calculateSuspensionTime(player, occurance.time);
-        impactedPlayers.set(playerId, {
-          ...impactedPlayers.get(playerId)!,
-          redcard: true,
-        });
-        suspensionPeriods.set(playerId, suspensionTime);
-        break;
-      }
-      case "INJURY": {
-        const player = await Player.getById(playerId);
-        const injuredTime = calculateInjuredTime(player);
-        impactedPlayers.set(playerId, {
-          ...impactedPlayers.get(playerId)!,
-          injury: true,
-        });
-        injuredPeriods.set(playerId, injuredTime);
-        break;
-      }
-      case "GOAL_REGULAR":
-      case "PENALTI_SCORED": {
-        impactedPlayers.set(playerId, {
-          ...impactedPlayers.get(playerId)!,
-          goals: impactedPlayers.get(playerId)!.goals + 1,
-        });
-        break;
-      }
-    }
+    await this.updateStandings();
   }
 
-  return {
-    impactedPlayers,
-    injuredPeriods,
-    suspensionPeriods,
-  };
-}
-
-async function processPlayersUpdates(
-  simulation: Simulator,
-  impactedPlayers: Map<IPlayer["id"], UpdateStruct>,
-  injuredPeriods: Map<IPlayer["id"], number>,
-  suspensionPeriods: Map<IPlayer["id"], number>,
-) {
-  const { squads } = simulation;
-  const awayPlayers = [...squads.away.playing, ...squads.away.out];
-  const homePlayers = [...squads.home.playing, ...squads.home.out];
-  const playerPromises: Promise<IPlayer["id"]>[] = [];
-  for (const player of [...homePlayers, ...awayPlayers]) {
-    const matchStats = impactedPlayers.get(player.id) ?? defaultObject;
-    const patchObj: Partial<IPlayer> = {
-      stats: {
-        seasonGoals: player.stats.seasonGoals + matchStats.goals,
-        games: player.stats.games + 1,
-        goals: player.stats.goals + matchStats.goals,
-        injuries: player.stats.injuries + Number(matchStats.injury),
-        redcards: player.stats.redcards + Number(matchStats.redcard),
-      },
-    };
-    if (suspensionPeriods.get(player.id)) {
-      patchObj.suspensionPeriod = suspensionPeriods.get(player.id);
-    }
-    if (injuredPeriods.get(player.id)) {
-      patchObj.injuryPeriod = injuredPeriods.get(player.id);
-    }
-    const playedTime = calculatePlayerPlayedTime(simulation, player);
-    patchObj.power = calculatePlayerPowerChangePostFixture(
-      player,
-      playedTime,
-      patchObj.injuryPeriod,
-    );
-    playerPromises.push(
-      Player.patch({
-        id: player.id,
-        ...patchObj,
-      }),
-    );
+  get result() {
+    return this.processedSimulations;
   }
-  await Promise.all(playerPromises);
-}
-
-async function processTeamsFinances(simulation: Simulator) {
-  const awayTeamId = simulation.fixture.awayId;
-  const homeTeamId = simulation.fixture.homeId;
-
-  await TeamBudget.creditAttendeesMoney(homeTeamId, simulation.attendees);
-
-  await TeamBudget.debitPlayersSalaries(awayTeamId);
-  await TeamBudget.debitPlayersSalaries(homeTeamId);
-}
-
-async function processFixtureEntity(simulation: Simulator) {
-  const [homeGoals, awayGoals] = simulation.currentScoreline;
-  const attendees = simulation.attendees;
-  await Fixture.patch({
-    id: simulation.fixture.id,
-    attendees,
-    homeGoals,
-    awayGoals,
-    occurred: true,
-  });
-}
-
-async function processStandings(fixtures: IFixture["id"][]) {
-  const standingsByChampionship = new Map<IChampionship["id"], IStanding[]>();
-  for (const fixtureId of fixtures) {
-    const fixture = await Fixture.getById(fixtureId);
-    const { awayId, championshipId, homeId } = fixture;
-
-    if (!standingsByChampionship.get(championshipId)) {
-      const standingsOfChampionship = await Standing.getMultipleByIndex(
-        "championshipId",
-        championshipId,
-      );
-      standingsByChampionship.set(championshipId, standingsOfChampionship);
-    }
-    const standings = standingsByChampionship.get(championshipId)!;
-
-    const homeStanding = standings.find(({ teamId }) => teamId === homeId)!;
-    const awayStanding = standings.find(({ teamId }) => teamId === awayId)!;
-
-    const homeGoals = fixture.homeGoals;
-    const awayGoals = fixture.awayGoals;
-
-    const homePoints = homeGoals > awayGoals ? 3 : homeGoals < awayGoals ? 0 : 1;
-    const awayPoints = awayGoals > homeGoals ? 3 : awayGoals < homeGoals ? 0 : 1;
-
-    homeStanding.points = homeStanding.points + homePoints;
-    homeStanding.goalsPro = homeStanding.goalsPro + homeGoals;
-    homeStanding.goalsAgainst = homeStanding.goalsAgainst + awayGoals;
-    awayStanding.points = awayStanding.points + awayPoints;
-    awayStanding.goalsPro = awayStanding.goalsPro + awayGoals;
-    awayStanding.goalsAgainst = awayStanding.goalsAgainst + homeGoals;
-
-    switch (homePoints) {
-      case 3: {
-        homeStanding.wins = homeStanding.wins + 1;
-        break;
-      }
-      case 1: {
-        homeStanding.draws = homeStanding.draws + 1;
-        break;
-      }
-      case 0: {
-        homeStanding.losses = homeStanding.losses + 1;
-        break;
-      }
-      default: {
-        console.error(homeStanding);
-      }
-    }
-
-    switch (awayPoints) {
-      case 3: {
-        awayStanding.wins = awayStanding.wins + 1;
-        break;
-      }
-      case 1: {
-        awayStanding.draws = awayStanding.draws + 1;
-        break;
-      }
-      case 0: {
-        awayStanding.losses = awayStanding.losses + 1;
-        break;
-      }
-      default: {
-        console.error(awayStanding);
-      }
-    }
-
-    await Standing.update(homeStanding);
-    await Standing.update(awayStanding);
-  }
-
-  return standingsByChampionship;
-}
-
-async function processMoraleChange(simulation: Simulator) {
-  const [homeGoals, awayGoals] = simulation.currentScoreline;
-  const homeWon = homeGoals > awayGoals;
-  const homeLost = homeGoals < awayGoals;
-  const awayWon = awayGoals > homeGoals;
-  const awayLost = awayGoals < homeGoals;
-
-  if (homeWon) {
-    await Team.patch({
-      id: simulation.fixture.homeId,
-      morale: clamp(simulation.homeMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
-    });
-  } else if (homeLost) {
-    await Team.patch({
-      id: simulation.fixture.homeId,
-      morale: clamp(simulation.homeMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
-    });
-  } else {
-    await Team.patch({
-      id: simulation.fixture.homeId,
-      morale: clamp(simulation.homeMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
-    });
-  }
-
-  if (awayWon) {
-    await Team.patch({
-      id: simulation.fixture.awayId,
-      morale: clamp(simulation.awayMorale + MORALE_BOOST_WIN, MORALE_MIN, MORALE_MAX),
-    });
-  } else if (awayLost) {
-    await Team.patch({
-      id: simulation.fixture.awayId,
-      morale: clamp(simulation.awayMorale + MORALE_BOOST_LOST, MORALE_MIN, MORALE_MAX),
-    });
-  } else {
-    await Team.patch({
-      id: simulation.fixture.awayId,
-      morale: clamp(simulation.awayMorale + MORALE_BOOST_DRAW, MORALE_MIN, MORALE_MAX),
-    });
-  }
-}
-
-export default async function postRoundProcessor(simulations: Simulator[]) {
-  // OPTIMIZE: call get all players here and use it throughout the processors below
-  await decreaseSuspensionPeriods();
-  await decreaseInjuryPeriods();
-  const processedFixtures: IFixture["id"][] = [];
-  const processedSimulations: ISimulationRecord["id"][] = [];
-  for (const simulation of simulations) {
-    const { suspensionPeriods, impactedPlayers, injuredPeriods } =
-      await processFixtureOccurances(simulation);
-    await processPlayersUpdates(simulation, impactedPlayers, injuredPeriods, suspensionPeriods);
-    await processTeamsFinances(simulation);
-    await processFixtureEntity(simulation);
-    await processMoraleChange(simulation);
-    processedSimulations.push(
-      await SimulationRecord.add({
-        fixtureId: simulation.fixture.id,
-        story: simulation.occurances,
-      }),
-    );
-    processedFixtures.push(simulation.fixture.id);
-  }
-  await processStandings(processedFixtures);
-  return processedSimulations;
 }

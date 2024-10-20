@@ -21,3 +21,4 @@ export type ArrayOfField<WrapperType, Field extends keyof any> = {
 };
 
 export type HashMap<T extends { id: number }> = Record<T["id"], T>;
+export type PatchObject<T extends { id: number }> = Partial<T> & { id: number };

@@ -3,8 +3,8 @@ import type { Accessor } from "solid-js";
 import { Championship, Fixture, League, Player, Standing, Team } from "@webfoot/core/models";
 import type { IChampionship, IFixture } from "@webfoot/core/models/types";
 import Simulator from "@webfoot/core/engine/simulator";
+import PostRoundProcessor from "@webfoot/core/engine/processors/post-round";
 import { pickSquadRandomly } from "@webfoot/core/engine/pickers/squad";
-import postRoundProcessor from "@webfoot/core/engine/processors/post-round";
 import postSeasonProcessor from "@webfoot/core/engine/processors/post-season";
 import standingSorter from "@webfoot/core/engine/sorters/standing";
 
@@ -82,13 +82,16 @@ export default function useSimulateSeason(params: Params) {
                 playing: homeSquad.firstTeam,
                 out: [],
               },
+              homeTeamIsHumanControlled: false,
+              awayTeamIsHumanControlled: false,
             }),
           );
         }
         for (let i = 0; i < 90; ++i) {
           for (const simulation of simulators) simulation.tick();
         }
-        await postRoundProcessor(simulators);
+        const processor = new PostRoundProcessor(simulators);
+        await processor.process();
       }
 
       // Finish season
