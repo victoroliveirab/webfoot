@@ -12,7 +12,17 @@ import calculateTeamStrength from "../calculators/team-strength";
 import calculateScorer from "../calculators/goal-scorer";
 import calculateRedCardPlayer from "../calculators/red-card";
 import calculateInjuryPlayer from "../calculators/injury";
-import playerSorter, { playerSorterByPower } from "../sorters/player";
+import playerSorter, {
+  playerSorterByDeffensivePower,
+  playerSorterByOffensivePower,
+  playerSorterByPower,
+  playerSorterByPowerReverse,
+} from "../sorters/player";
+import {
+  getGreatestPowerOfEachPosition,
+  getPlayerPositionSortValue,
+  getSmallestPowerOfEachPosition,
+} from "./helpers";
 
 export type SquadRecord = {
   playing: IPlayer[];
@@ -125,7 +135,7 @@ class Simulator {
     injuriedPlayer: IPlayer,
     updateArr: TickUpdates,
   ) {
-    const bench = this.getSquadByTeamId(teamId).bench;
+    const { bench } = this.getSquadByTeamId(teamId);
     const hasSubPlayersAvailable = bench.length > 0;
     const isHomeTeam = this.getIsTeamHomeByTeamId(teamId);
     const hasSubsLeft = isHomeTeam ? this.homeSubsLeft > 0 : this.awaySubsLeft > 0;
@@ -140,11 +150,12 @@ class Simulator {
       this.substitutePlayers(teamId, injuriedPlayer.id, bench[bestSubCandidateIndex].id, updateArr);
       return;
     }
+    const bestBenched = getGreatestPowerOfEachPosition(bench);
     // No player from the same position
     if (injuriedPlayer.position === "G") {
       // If the injuried player is a GK and there's no GK available
       // Use the most defensive player we can find
-      const bestSub = bench.toSorted(playerSorter)[0];
+      const bestSub = bestBenched.D || bestBenched.M || bestBenched.A!;
       this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
       return;
     }
@@ -156,21 +167,103 @@ class Simulator {
     const isWinning = isHomeTeam
       ? currentScoreline[0] > currentScoreline[1]
       : currentScoreline[1] > currentScoreline[0];
-    let bestSub: IPlayer;
+
+    let bestSub: IPlayer | null;
     if (isWinning) {
-      // NOTE: the following will get player by alphabetical order instead of power
       // If it's winning, better put the most defensive player to play
-      bestSub = bench.toSorted(playerSorter)[0];
+      bestSub = bestBenched.D || bestBenched.M || bestBenched.A;
     } else if (isLosing) {
-      // NOTE: the following will get player by alphabetical order instead of power
       // If it's losing, better put the most offensive player to play
-      bestSub = bench.toSorted(playerSorter)[bench.length - 1];
+      bestSub = bestBenched.A || bestBenched.M || bestBenched.D!;
     } else {
-      // NOTE: this should be a midfielder ideally, but whatever
       // If it's drawing, just put the best player
-      bestSub = bench.toSorted(playerSorterByPower)[0];
+      bestSub = bench.filter(({ position }) => position !== "G").toSorted(playerSorterByPower)[0];
     }
-    this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
+    if (bestSub) {
+      this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
+    } else {
+      this.removePlayingPlayer(teamId, injuriedPlayer.id);
+    }
+  }
+
+  private substituteIAAfterRedCard(
+    teamId: ITeam["id"],
+    sentOffPlayer: IPlayer,
+    updateArr: TickUpdates,
+  ) {
+    const { bench, playing } = this.getSquadByTeamId(teamId);
+    const hasSubPlayersAvailable = bench.length > 0;
+    const isHomeTeam = this.getIsTeamHomeByTeamId(teamId);
+    const hasSubsLeft = isHomeTeam ? this.homeSubsLeft > 0 : this.awaySubsLeft > 0;
+    if (!hasSubPlayersAvailable || !hasSubsLeft) {
+      this.removePlayingPlayer(teamId, sentOffPlayer.id);
+      return;
+    }
+
+    const wasGKSentOff = sentOffPlayer.position === "G";
+    const [homeGoals, awayGoals] = this.currentScoreline;
+    const isTeamLosing = isHomeTeam ? homeGoals < awayGoals : awayGoals < homeGoals;
+
+    if (wasGKSentOff) {
+      const subGK = bench.find(({ position }) => position === "G");
+      // A GK was sent off, and we have a GK available to enter
+      if (subGK) {
+        // If team is losing, we want to remove the worst non-attacking player to put the new GK
+        // If team is winning/drawing, we want to remove the worst non-defending player to put the new GK
+        const playingSquad = playing
+          .filter(({ id }) => id !== sentOffPlayer.id)
+          .toSorted(isTeamLosing ? playerSorterByDeffensivePower : playerSorterByOffensivePower);
+        let index = 1;
+        while (
+          index < playingSquad.length &&
+          playingSquad[index].position === playingSquad[index - 1].position
+        )
+          ++index;
+        const subbedPlayer = playingSquad[index - 1];
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+        this.substitutePlayers(teamId, subbedPlayer.id, subGK.id, updateArr);
+      } else {
+        // A GK was sent off, but we don't have any GK available to enter
+        // Later we can add logic here, for now let's just imagine that it's better to not sub anyone
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+      }
+      return;
+    }
+
+    const playingSquad = playing.filter(({ id }) => id !== sentOffPlayer.id);
+
+    // Player sent off was not a GK
+    if (isTeamLosing) {
+      // If team is losing, we want to remove the worst defensive player and put the best offensive
+      // NOTE: this is far from perfect (e.g. if we have A power 1 on bench and M power 50
+      // and we want to try to swap with D of power 10, the comparison will happen to A, even though
+      // the best move is to place M 50 on D 10)
+      const worstPlayingPlayers = getSmallestPowerOfEachPosition(playingSquad);
+      const subbedPlayer = worstPlayingPlayers.D || worstPlayingPlayers.M || worstPlayingPlayers.A!;
+      const bestBenchedPlayers = getGreatestPowerOfEachPosition(bench);
+      const joiningPlayer = bestBenchedPlayers.A || bestBenchedPlayers.M || bestBenchedPlayers.D;
+      if (joiningPlayer && joiningPlayer.power >= subbedPlayer.power) {
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+        this.substitutePlayers(teamId, subbedPlayer.id, joiningPlayer.id, updateArr);
+      } else {
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+      }
+      return;
+    } else {
+      // If team is winning/drawing, we want to remove the worst attakcing player and put the best deffensive
+      // NOTE: Like the previous example
+      const worstPlayingPlayers = getSmallestPowerOfEachPosition(playingSquad);
+      const subbedPlayer = worstPlayingPlayers.A || worstPlayingPlayers.M || worstPlayingPlayers.D!;
+      const bestBenchedPlayers = getGreatestPowerOfEachPosition(bench);
+      const joiningPlayer = bestBenchedPlayers.D || bestBenchedPlayers.M || bestBenchedPlayers.A;
+      if (joiningPlayer && joiningPlayer.power >= subbedPlayer.power) {
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+        this.substitutePlayers(teamId, subbedPlayer.id, joiningPlayer.id, updateArr);
+      } else {
+        this.removePlayingPlayer(teamId, sentOffPlayer.id);
+      }
+      return;
+    }
   }
 
   private calculateInjuries(updateArr: TickUpdates) {
@@ -227,15 +320,14 @@ class Simulator {
       if (homePlayersSentOffCandidates.length > 0) {
         const sentOffPlayer =
           this.homeSquadRecord.playing[pickRandom(homePlayersSentOffCandidates)];
-        this.homeSquadRecord.playing = this.homeSquadRecord.playing.filter(
-          ({ id }) => id !== sentOffPlayer.id,
-        );
-        this.homeSquadRecord.out.push(sentOffPlayer);
         updateArr.newStories.push({
           playerId: sentOffPlayer.id,
           time: this.clock,
           type: "REDCARD",
         });
+        if (!this.homeTeamIsHumanControlled) {
+          this.substituteIAAfterRedCard(this.fixture.homeId, sentOffPlayer, updateArr);
+        }
       }
     }
 
