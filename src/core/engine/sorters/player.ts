@@ -9,9 +9,19 @@ function getPlayerPositionSortValue(player: IPlayer) {
 
 export function playerSorterByPower(playerA: IPlayer, playerB: IPlayer) {
   if (playerA.power === playerB.power) {
-    return Math.random() < 0.5 ? 1 : -1;
+    return playerSorter(playerA, playerB);
   }
   return playerA.power < playerB.power ? 1 : -1;
+}
+
+export function playerSorterByOffensivePower(playerA: IPlayer, playerB: IPlayer) {
+  if (playerA.position !== playerB.position) {
+    const playerAPositionValue = getPlayerPositionSortValue(playerA);
+    const playerBPositionValue = getPlayerPositionSortValue(playerB);
+    // Attackers should come first and GK last
+    return playerAPositionValue < playerBPositionValue ? -1 : 1;
+  }
+  return playerSorterByPower(playerA, playerB);
 }
 
 export function playerSorterByGoalsThisSeason(playerA: IPlayer, playerB: IPlayer) {
@@ -43,5 +53,5 @@ export default function playerSorter(playerA: IPlayer, playerB: IPlayer) {
     const playerBPositionValue = getPlayerPositionSortValue(playerB);
     return playerAPositionValue < playerBPositionValue ? 1 : -1;
   }
-  return playerA.name < playerB.name ? 1 : -1;
+  return playerA.name > playerB.name ? 1 : -1;
 }

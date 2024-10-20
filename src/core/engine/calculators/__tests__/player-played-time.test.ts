@@ -1,6 +1,6 @@
 import type { IPlayer } from "@webfoot/core/models/types";
+import SimulatorStub from "@webfoot/test-utils/stubs/simulator";
 
-import SimulatorStub from "../../simulator/test-utils";
 import { calculatePlayerPlayedTime } from "../player-played-time";
 
 function generatePlayers(number: number) {

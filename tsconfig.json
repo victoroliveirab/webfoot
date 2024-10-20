@@ -27,6 +27,9 @@
       "@webfoot/models": [
         "./src/core/models/index.ts"
       ],
+      "@webfoot/test-utils/*": [
+        "./src/core/engine/test-utils/*"
+      ],
       "@webfoot/utils/*": [
         "./src/utils/*"
       ]

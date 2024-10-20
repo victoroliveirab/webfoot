@@ -1,7 +1,7 @@
-import { IPlayer } from "@webfoot/core/models/types";
-import Simulator from ".";
-
+import type { IPlayer } from "@webfoot/core/models/types";
 import type { Story } from "@webfoot/core/db/types";
+
+import Simulator from "../../simulator";
 
 export default class SimulatorStub extends Simulator {
   constructor() {
