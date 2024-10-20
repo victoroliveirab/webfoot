@@ -45,6 +45,8 @@ const Occurances = ({ simulation }: Props) => {
                   </li>
                 );
               }
+              case "SUBSTITUTION":
+                return null;
               default: {
                 return (
                   <li class="flex gap-1">

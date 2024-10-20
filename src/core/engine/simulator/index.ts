@@ -38,11 +38,11 @@ type TickUpdates = {
 
 class Simulator {
   fixture: IFixture;
-  private homeSquadRecord: SquadRecord;
-  private awaySquadRecord: SquadRecord;
+  protected homeSquadRecord: SquadRecord;
+  protected awaySquadRecord: SquadRecord;
   readonly homeMorale: number;
   readonly awayMorale: number;
-  private clock: number = 0;
+  protected clock: number = 0;
   readonly homeTeamIsHumanControlled: boolean;
   readonly awayTeamIsHumanControlled: boolean;
   homeSubsLeft: number = 3;
@@ -50,7 +50,7 @@ class Simulator {
   // This will end up with 91 values (0-90 min) which is fine
   scoreline: [number, number][] = [[0, 0]];
   attendees: number;
-  private story: Story[] = [];
+  protected story: Story[] = [];
 
   constructor(params: SimulatorConstructorParams) {
     this.fixture = params.fixture;
@@ -120,7 +120,11 @@ class Simulator {
     updateArr.newScoreLine = [homeGoals, awayGoals];
   }
 
-  private substituteIAInjuredPlayer(teamId: ITeam["id"], injuriedPlayer: IPlayer) {
+  private substituteIAInjuredPlayer(
+    teamId: ITeam["id"],
+    injuriedPlayer: IPlayer,
+    updateArr: TickUpdates,
+  ) {
     const bench = this.getSquadByTeamId(teamId).bench;
     const hasSubPlayersAvailable = bench.length > 0;
     const isHomeTeam = this.getIsTeamHomeByTeamId(teamId);
@@ -133,16 +137,15 @@ class Simulator {
       ({ position }) => position === injuriedPlayer.position,
     );
     if (bestSubCandidateIndex >= 0) {
-      this.substitutePlayers(teamId, injuriedPlayer.id, bench[bestSubCandidateIndex].id);
+      this.substitutePlayers(teamId, injuriedPlayer.id, bench[bestSubCandidateIndex].id, updateArr);
       return;
     }
     // No player from the same position
     if (injuriedPlayer.position === "G") {
-      console.log("injuried player is GK");
       // If the injuried player is a GK and there's no GK available
       // Use the most defensive player we can find
       const bestSub = bench.toSorted(playerSorter)[0];
-      this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id);
+      this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
       return;
     }
     // No player from the same position, but injuried player is not GK
@@ -167,7 +170,7 @@ class Simulator {
       // If it's drawing, just put the best player
       bestSub = bench.toSorted(playerSorterByPower)[0];
     }
-    this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id);
+    this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
   }
 
   private calculateInjuries(updateArr: TickUpdates) {
@@ -189,7 +192,7 @@ class Simulator {
       this.homeSquadRecord.out.push(injuriedPlayer);
       if (!this.homeTeamIsHumanControlled) {
         // Home team is not human controlled, so let's do the substitution automatically
-        this.substituteIAInjuredPlayer(this.fixture.homeId, injuriedPlayer);
+        this.substituteIAInjuredPlayer(this.fixture.homeId, injuriedPlayer, updateArr);
       }
     }
     if (awayPlayersInjuryCandidates.length > 0) {
@@ -201,7 +204,7 @@ class Simulator {
       });
       if (!this.awayTeamIsHumanControlled) {
         // Away team is not human controlled, so let's do the substitution automatically
-        this.substituteIAInjuredPlayer(this.fixture.awayId, injuriedPlayer);
+        this.substituteIAInjuredPlayer(this.fixture.awayId, injuriedPlayer, updateArr);
       }
     }
   }
@@ -287,7 +290,14 @@ class Simulator {
 
   get lastOccurance() {
     if (this.story.length === 0) return;
-    return this.story[this.story.length - 1];
+    for (let index = this.story.length - 1; index >= 0; --index) {
+      if (
+        this.story[index].type !== "SUBSTITUTION" &&
+        this.story[index].type !== "PENALTI_MISSED"
+      ) {
+        return this.story[index];
+      }
+    }
   }
 
   get occurances() {
@@ -299,6 +309,10 @@ class Simulator {
       away: this.awaySquadRecord,
       home: this.homeSquadRecord,
     };
+  }
+
+  get playedTime() {
+    return this.clock;
   }
 
   getPlayer(playerId: IPlayer["id"]) {
@@ -323,7 +337,12 @@ class Simulator {
     }
   }
 
-  substitutePlayers(teamId: ITeam["id"], playerOut: IPlayer["id"], playerIn: IPlayer["id"]) {
+  substitutePlayers(
+    teamId: ITeam["id"],
+    playerOut: IPlayer["id"],
+    playerIn: IPlayer["id"],
+    updateArr?: TickUpdates,
+  ) {
     const squadRecord =
       teamId === this.fixture.homeId ? this.homeSquadRecord : this.awaySquadRecord;
     const leavingPlayer = squadRecord.playing.findIndex((player) => player.id === playerOut);
@@ -331,6 +350,7 @@ class Simulator {
     if (leavingPlayer < 0 || joiningPlayer < 0)
       throw new Error("Cannot switch players that don't belong to team");
     const outPlayer = squadRecord.playing[leavingPlayer];
+    const inPlayer = squadRecord.bench[joiningPlayer];
     squadRecord.playing.splice(leavingPlayer, 1, squadRecord.bench[joiningPlayer]);
     squadRecord.bench.splice(joiningPlayer, 1);
     squadRecord.out.push(outPlayer);
@@ -338,6 +358,22 @@ class Simulator {
       this.homeSubsLeft--;
     } else {
       this.awaySubsLeft--;
+    }
+
+    if (updateArr) {
+      updateArr.newStories.push({
+        playerId: inPlayer.id,
+        subbedPlayerId: outPlayer.id,
+        time: this.clock,
+        type: "SUBSTITUTION",
+      });
+    } else {
+      this.story.push({
+        playerId: inPlayer.id,
+        subbedPlayerId: outPlayer.id,
+        time: this.clock,
+        type: "SUBSTITUTION",
+      });
     }
   }
 

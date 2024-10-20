@@ -17,6 +17,8 @@ import {
   MORALE_MIN,
 } from "./constants";
 import calculateInjuredTime from "../calculators/injured-time";
+import { calculatePlayerPlayedTime } from "../calculators/player-played-time";
+import { calculatePlayerPowerChangePostFixture } from "../calculators/player-power-change";
 import calculateSuspensionTime from "../calculators/suspension-time";
 import type Simulator from "../simulator";
 
@@ -143,6 +145,12 @@ async function processPlayersUpdates(
     if (injuredPeriods.get(player.id)) {
       patchObj.injuryPeriod = injuredPeriods.get(player.id);
     }
+    const playedTime = calculatePlayerPlayedTime(simulation, player);
+    patchObj.power = calculatePlayerPowerChangePostFixture(
+      player,
+      playedTime,
+      patchObj.injuryPeriod,
+    );
     playerPromises.push(
       Player.patch({
         id: player.id,

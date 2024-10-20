@@ -25,7 +25,7 @@ export const MORALE_MULTIPLIER = 0.8;
 export const DISCIPLINE_THRESHOLD = 11.0;
 export const RED_CARD_THRESHOLD = 0.0005;
 
-export const INJURY_BASELINE = 0.00046;
+export const INJURY_BASELINE = 0.00026;
 export const INJURY_PRONENESS_MULTIPLIER = 0.0002;
 
 export const INJURY_PRONENESS_TIME_FACTOR_MULTIPLIER = 0.2;
@@ -42,3 +42,7 @@ export const COMBINED_FACTOR_MULTIPLIER_MODERATE = 0.6;
 // Must sum 1.0
 export const DISCIPLINE_INFLUENCE_FACTOR = 0.7;
 export const TIME_INFLUENCE_FACTOR = 0.3;
+
+export const INCREASE_POWER_PROBABILITY_NOT_USED_PLAYER = 0.33;
+export const INCREASE_POWER_FACTOR_USED_PLAYER = 0.1; // only applied for less than 45 minutes
+export const DECREASE_POWER_FACTOR_USER_PLAYER = 0.4; // only applied for more than 45 minutes
