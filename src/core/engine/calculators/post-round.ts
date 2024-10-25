@@ -1,8 +1,4 @@
-import { Fixture, Player, Team, TeamBudget } from "@webfoot/core/models";
 import type { IPlayer } from "@webfoot/core/models/types";
-import { arrayToHashMap } from "@webfoot/utils/array";
-import { clamp } from "@webfoot/utils/math";
-import type { HashMap, PatchObject } from "@webfoot/utils/types";
 
 import type {
   IInjuryTimeCalculator,
@@ -11,6 +7,10 @@ import type {
   ISuspensionTimeCalculator,
 } from "../interfaces";
 import type Simulator from "../simulator";
+import { HashMap, PatchObject } from "@webfoot/utils/types";
+import { arrayToHashMap } from "@webfoot/utils/array";
+import { Fixture, Player, Team, TeamBudget } from "@webfoot/core/models";
+import { clamp } from "@webfoot/utils/math";
 
 type Params = {
   calculators: {

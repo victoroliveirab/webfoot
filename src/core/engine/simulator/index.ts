@@ -3,48 +3,65 @@ import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
 import { pickRandom } from "@webfoot/utils/array";
 import { randomWeighted } from "@webfoot/utils/math";
 
+import type {
+  IGoalScoredCalculator,
+  IInjuryCalculator,
+  IInjuryTimeCalculator,
+  IPlayerPowerChangePostFixtureCalculator,
+  IPostRoundCalculator,
+  IRedCardCalculator,
+  ISuspensionTimeCalculator,
+  ITeamStrengthCalculator,
+} from "../interfaces";
+import { AITrainerStrategy, SquadRecord } from "../types";
+import aiTrainerFactory, { type AITrainer } from "../ai/trainer";
 import {
-  GOAL_PROBABILITY_SCALING_FACTOR,
-  RANDOM_FACTOR_MIN,
-  RANDOM_FACTOR_RANGE,
-} from "./constants";
-import calculateTeamStrength from "../calculators/team-strength";
-import calculateScorer from "../calculators/goal-scorer";
-import calculateRedCardPlayer from "../calculators/red-card";
-import calculateInjuryPlayer from "../calculators/injury";
-import playerSorter, {
-  playerSorterByDeffensivePower,
-  playerSorterByOffensivePower,
-  playerSorterByPower,
-  playerSorterByPowerReverse,
-} from "../sorters/player";
-import {
-  getGreatestPowerOfEachPosition,
-  getPlayerPositionSortValue,
-  getSmallestPowerOfEachPosition,
-} from "./helpers";
+  getCurrentScorelineOfSimulator,
+  getFixtureOfSimulator,
+  getSquadOfSimulator,
+  getSubsLeftOfSimulator,
+} from "./getters";
 
-export type SquadRecord = {
-  playing: IPlayer[];
-  bench: IPlayer[];
-  out: IPlayer[];
+type SimulatorAITeam = {
+  aiStrategy: AITrainerStrategy;
+  morale: number;
+  players: IPlayer[];
 };
 
+type SimulatorHumanTeam = {
+  morale: number;
+  squad: Omit<SquadRecord, "out">;
+};
+
+type SimulatorTeam = SimulatorAITeam | SimulatorHumanTeam;
+
 type SimulatorConstructorParams = {
-  awayInitialSquad: SquadRecord;
-  awayMorale: number;
+  awayTeam: SimulatorTeam;
   fixture: IFixture;
-  homeInitialSquad: SquadRecord;
-  homeMorale: number;
+  homeTeam: SimulatorTeam;
   stadiumCapacity: number;
-  homeTeamIsHumanControlled: boolean;
-  awayTeamIsHumanControlled: boolean;
+  calculators: {
+    goalScoredCalculator: IGoalScoredCalculator;
+    injuryCalculator: IInjuryCalculator;
+    injuredTimeCalculator: IInjuryTimeCalculator;
+    playerPowerChangePostFixtureCalculator: IPlayerPowerChangePostFixtureCalculator;
+    redcardCalculator: IRedCardCalculator;
+    suspensionTimeCalculator: ISuspensionTimeCalculator;
+    teamStrengthCalculator: ITeamStrengthCalculator;
+  };
+  processors: {
+    postRoundProcessor: IPostRoundCalculator;
+  };
 };
 
 type TickUpdates = {
   newScoreLine: [number, number];
   newStories: Story[];
 };
+
+function getIsAI(params: SimulatorTeam): params is SimulatorAITeam {
+  return "aiStrategy" in params;
+}
 
 class Simulator {
   fixture: IFixture;
@@ -53,8 +70,10 @@ class Simulator {
   readonly homeMorale: number;
   readonly awayMorale: number;
   protected clock: number = 0;
-  readonly homeTeamIsHumanControlled: boolean;
-  readonly awayTeamIsHumanControlled: boolean;
+  readonly calculators: SimulatorConstructorParams["calculators"];
+  readonly processors: SimulatorConstructorParams["processors"];
+  protected readonly homeAITrainer: AITrainer | null = null;
+  protected readonly awayAITrainer: AITrainer | null = null;
   homeSubsLeft: number = 3;
   awaySubsLeft: number = 3;
   // This will end up with 91 values (0-90 min) which is fine
@@ -64,15 +83,65 @@ class Simulator {
 
   constructor(params: SimulatorConstructorParams) {
     this.fixture = params.fixture;
-    this.homeMorale = params.homeMorale;
-    this.awayMorale = params.awayMorale;
+    this.processors = params.processors;
 
-    this.homeSquadRecord = params.homeInitialSquad;
-    this.awaySquadRecord = params.awayInitialSquad;
-    this.homeTeamIsHumanControlled = params.homeTeamIsHumanControlled;
-    this.awayTeamIsHumanControlled = params.awayTeamIsHumanControlled;
+    if (getIsAI(params.homeTeam)) {
+      const { aiStrategy, players } = params.homeTeam;
+      const homeAITrainer = aiTrainerFactory(aiStrategy, {
+        getters: {
+          currentScoreline: getCurrentScorelineOfSimulator.bind(this),
+          fixture: getFixtureOfSimulator.bind(this),
+          isHomeTeam: () => true,
+          squad: getSquadOfSimulator("home").bind(this),
+          subsLeft: getSubsLeftOfSimulator("home").bind(this),
+        },
+        teamId: this.fixture.homeId,
+      });
+      this.homeSquadRecord = {
+        ...homeAITrainer.pickFixtureSquad(
+          players.filter((player) => player.injuryPeriod === 0 && player.suspensionPeriod === 0),
+        ),
+        out: [],
+      };
+      this.homeAITrainer = homeAITrainer;
+    } else {
+      this.homeSquadRecord = {
+        ...params.homeTeam.squad,
+        out: [],
+      };
+    }
 
-    this.attendees = randomWeighted(1_000, params.stadiumCapacity, params.homeMorale);
+    if (getIsAI(params.awayTeam)) {
+      const { aiStrategy, players } = params.awayTeam;
+      const awayAITrainer = aiTrainerFactory(aiStrategy, {
+        getters: {
+          currentScoreline: getCurrentScorelineOfSimulator.bind(this),
+          fixture: getFixtureOfSimulator.bind(this),
+          isHomeTeam: () => false,
+          squad: getSquadOfSimulator("away").bind(this),
+          subsLeft: getSubsLeftOfSimulator("away").bind(this),
+        },
+        teamId: this.fixture.awayId,
+      });
+      this.awaySquadRecord = {
+        ...awayAITrainer.pickFixtureSquad(
+          players.filter((player) => player.injuryPeriod === 0 && player.suspensionPeriod === 0),
+        ),
+        out: [],
+      };
+      this.awayAITrainer = awayAITrainer;
+    } else {
+      this.awaySquadRecord = {
+        ...params.awayTeam.squad,
+        out: [],
+      };
+    }
+
+    this.homeMorale = params.homeTeam.morale;
+    this.awayMorale = params.awayTeam.morale;
+    this.calculators = params.calculators;
+
+    this.attendees = randomWeighted(1_000, params.stadiumCapacity, this.homeMorale);
   }
 
   private getSquadByTeamId(teamId: ITeam["id"]) {
@@ -90,40 +159,42 @@ class Simulator {
   private calculateGoals(updateArr: TickUpdates) {
     let homeGoals = updateArr.newScoreLine[0];
     let awayGoals = updateArr.newScoreLine[1];
+    const homePlayingSquad = this.homeSquadRecord.playing;
+    const awayPlayingSquad = this.awaySquadRecord.playing;
 
     // OPTIMIZE: cache this number and only recalculate on sub/injury/redcard
-    const homeTeamStrength = calculateTeamStrength(this.homeSquadRecord.playing, this.homeMorale);
-    const awayTeamStrength = calculateTeamStrength(this.awaySquadRecord.playing, this.awayMorale);
+    const homeTeamStrength = this.calculators.teamStrengthCalculator.calculate(
+      homePlayingSquad,
+      this.homeMorale,
+    );
+    const awayTeamStrength = this.calculators.teamStrengthCalculator.calculate(
+      awayPlayingSquad,
+      this.awayMorale,
+    );
+    const homeScoreValue = this.calculators.goalScoredCalculator.calculate(
+      homePlayingSquad,
+      homeTeamStrength.attack,
+      awayTeamStrength.defense,
+    );
+    const awayScoreValue = this.calculators.goalScoredCalculator.calculate(
+      awayPlayingSquad,
+      awayTeamStrength.attack,
+      homeTeamStrength.defense,
+    );
 
-    const randomFactorHome = Math.random() * RANDOM_FACTOR_RANGE + RANDOM_FACTOR_MIN;
-    const randomFactorAway = Math.random() * RANDOM_FACTOR_RANGE + RANDOM_FACTOR_MIN;
-
-    const attackHome = homeTeamStrength.attack * randomFactorHome;
-    const defenseHome = homeTeamStrength.defense * randomFactorHome;
-    const attackAway = awayTeamStrength.attack * randomFactorAway;
-    const defenseAway = awayTeamStrength.defense * randomFactorAway;
-
-    const probabilityGoalsHome = attackHome / (defenseAway * GOAL_PROBABILITY_SCALING_FACTOR);
-    const probabilityGoalsAway = attackAway / (defenseHome * GOAL_PROBABILITY_SCALING_FACTOR);
-
-    const hasHomeScored = Math.random() < probabilityGoalsHome;
-    const hasAwayScored = Math.random() < probabilityGoalsAway;
-
-    if (hasHomeScored) {
+    if (homeScoreValue.goal) {
       homeGoals++;
-      const scorer = calculateScorer(this.homeSquadRecord.playing);
       updateArr.newStories.push({
         type: "GOAL_REGULAR",
-        playerId: scorer.id,
+        playerId: homeScoreValue.scorer.id,
         time: this.clock,
       });
       // The else if is intentional to slightly favor home teams
-    } else if (hasAwayScored) {
+    } else if (awayScoreValue.goal) {
       awayGoals++;
-      const scorer = calculateScorer(this.awaySquadRecord.playing);
       updateArr.newStories.push({
         type: "GOAL_REGULAR",
-        playerId: scorer.id,
+        playerId: awayScoreValue.scorer.id,
         time: this.clock,
       });
     }
@@ -131,67 +202,36 @@ class Simulator {
   }
 
   private substituteIAInjuredPlayer(
-    teamId: ITeam["id"],
-    injuriedPlayer: IPlayer,
+    trainer: AITrainer,
+    injuredPlayer: IPlayer,
     updateArr: TickUpdates,
   ) {
+    const { teamId } = trainer;
     const { bench } = this.getSquadByTeamId(teamId);
     const hasSubPlayersAvailable = bench.length > 0;
     const isHomeTeam = this.getIsTeamHomeByTeamId(teamId);
-    const hasSubsLeft = isHomeTeam ? this.homeSubsLeft > 0 : this.awaySubsLeft > 0;
+    const subsLeft = isHomeTeam ? this.homeSubsLeft : this.awaySubsLeft;
+    const hasSubsLeft = subsLeft > 0;
     if (!hasSubPlayersAvailable || !hasSubsLeft) {
-      this.removePlayingPlayer(teamId, injuriedPlayer.id);
+      this.removePlayingPlayer(teamId, injuredPlayer.id);
       return;
     }
-    const bestSubCandidateIndex = bench.findIndex(
-      ({ position }) => position === injuriedPlayer.position,
-    );
-    if (bestSubCandidateIndex >= 0) {
-      this.substitutePlayers(teamId, injuriedPlayer.id, bench[bestSubCandidateIndex].id, updateArr);
-      return;
-    }
-    const bestBenched = getGreatestPowerOfEachPosition(bench);
-    // No player from the same position
-    if (injuriedPlayer.position === "G") {
-      // If the injuried player is a GK and there's no GK available
-      // Use the most defensive player we can find
-      const bestSub = bestBenched.D || bestBenched.M || bestBenched.A!;
-      this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
-      return;
-    }
-    // No player from the same position, but injuried player is not GK
-    const currentScoreline = this.scoreline[this.clock - 1]; // We already advanced the clock
-    const isLosing = isHomeTeam
-      ? currentScoreline[0] < currentScoreline[1]
-      : currentScoreline[1] < currentScoreline[0];
-    const isWinning = isHomeTeam
-      ? currentScoreline[0] > currentScoreline[1]
-      : currentScoreline[1] > currentScoreline[0];
 
-    let bestSub: IPlayer | null;
-    if (isWinning) {
-      // If it's winning, better put the most defensive player to play
-      bestSub = bestBenched.D || bestBenched.M || bestBenched.A;
-    } else if (isLosing) {
-      // If it's losing, better put the most offensive player to play
-      bestSub = bestBenched.A || bestBenched.M || bestBenched.D!;
+    const sub = trainer.decideSubstitutionPostInjury(injuredPlayer);
+    if (sub) {
+      this.substitutePlayers(teamId, injuredPlayer.id, sub.id, updateArr);
     } else {
-      // If it's drawing, just put the best player
-      bestSub = bench.filter(({ position }) => position !== "G").toSorted(playerSorterByPower)[0];
-    }
-    if (bestSub) {
-      this.substitutePlayers(teamId, injuriedPlayer.id, bestSub.id, updateArr);
-    } else {
-      this.removePlayingPlayer(teamId, injuriedPlayer.id);
+      this.removePlayingPlayer(teamId, injuredPlayer.id);
     }
   }
 
   private substituteIAAfterRedCard(
-    teamId: ITeam["id"],
+    trainer: AITrainer,
     sentOffPlayer: IPlayer,
     updateArr: TickUpdates,
   ) {
-    const { bench, playing } = this.getSquadByTeamId(teamId);
+    const { teamId } = trainer;
+    const { bench } = this.getSquadByTeamId(teamId);
     const hasSubPlayersAvailable = bench.length > 0;
     const isHomeTeam = this.getIsTeamHomeByTeamId(teamId);
     const hasSubsLeft = isHomeTeam ? this.homeSubsLeft > 0 : this.awaySubsLeft > 0;
@@ -200,79 +240,20 @@ class Simulator {
       return;
     }
 
-    const wasGKSentOff = sentOffPlayer.position === "G";
-    const [homeGoals, awayGoals] = this.currentScoreline;
-    const isTeamLosing = isHomeTeam ? homeGoals < awayGoals : awayGoals < homeGoals;
-
-    if (wasGKSentOff) {
-      const subGK = bench.find(({ position }) => position === "G");
-      // A GK was sent off, and we have a GK available to enter
-      if (subGK) {
-        // If team is losing, we want to remove the worst non-attacking player to put the new GK
-        // If team is winning/drawing, we want to remove the worst non-defending player to put the new GK
-        const playingSquad = playing
-          .filter(({ id }) => id !== sentOffPlayer.id)
-          .toSorted(isTeamLosing ? playerSorterByDeffensivePower : playerSorterByOffensivePower);
-        let index = 1;
-        while (
-          index < playingSquad.length &&
-          playingSquad[index].position === playingSquad[index - 1].position
-        )
-          ++index;
-        const subbedPlayer = playingSquad[index - 1];
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-        this.substitutePlayers(teamId, subbedPlayer.id, subGK.id, updateArr);
-      } else {
-        // A GK was sent off, but we don't have any GK available to enter
-        // Later we can add logic here, for now let's just imagine that it's better to not sub anyone
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-      }
-      return;
-    }
-
-    const playingSquad = playing.filter(({ id }) => id !== sentOffPlayer.id);
-
-    // Player sent off was not a GK
-    if (isTeamLosing) {
-      // If team is losing, we want to remove the worst defensive player and put the best offensive
-      // NOTE: this is far from perfect (e.g. if we have A power 1 on bench and M power 50
-      // and we want to try to swap with D of power 10, the comparison will happen to A, even though
-      // the best move is to place M 50 on D 10)
-      const worstPlayingPlayers = getSmallestPowerOfEachPosition(playingSquad);
-      const subbedPlayer = worstPlayingPlayers.D || worstPlayingPlayers.M || worstPlayingPlayers.A!;
-      const bestBenchedPlayers = getGreatestPowerOfEachPosition(bench);
-      const joiningPlayer = bestBenchedPlayers.A || bestBenchedPlayers.M || bestBenchedPlayers.D;
-      if (joiningPlayer && joiningPlayer.power >= subbedPlayer.power) {
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-        this.substitutePlayers(teamId, subbedPlayer.id, joiningPlayer.id, updateArr);
-      } else {
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-      }
-      return;
-    } else {
-      // If team is winning/drawing, we want to remove the worst attakcing player and put the best deffensive
-      // NOTE: Like the previous example
-      const worstPlayingPlayers = getSmallestPowerOfEachPosition(playingSquad);
-      const subbedPlayer = worstPlayingPlayers.A || worstPlayingPlayers.M || worstPlayingPlayers.D!;
-      const bestBenchedPlayers = getGreatestPowerOfEachPosition(bench);
-      const joiningPlayer = bestBenchedPlayers.D || bestBenchedPlayers.M || bestBenchedPlayers.A;
-      if (joiningPlayer && joiningPlayer.power >= subbedPlayer.power) {
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-        this.substitutePlayers(teamId, subbedPlayer.id, joiningPlayer.id, updateArr);
-      } else {
-        this.removePlayingPlayer(teamId, sentOffPlayer.id);
-      }
-      return;
+    const sub = trainer.decideSubstitutionPostRedcard(sentOffPlayer);
+    this.removePlayingPlayer(teamId, sentOffPlayer.id);
+    if (sub) {
+      this.substitutePlayers(teamId, sub.playerOut.id, sub.playerIn.id, updateArr);
     }
   }
 
   private calculateInjuries(updateArr: TickUpdates) {
     const homePlayersInjuryCandidates = this.homeSquadRecord.playing
-      .map(calculateInjuryPlayer)
+      .map(this.calculators.injuryCalculator.calculate)
       .map((injuried, i) => (injuried ? i : -1))
       .filter((el) => el >= 0);
     const awayPlayersInjuryCandidates = this.awaySquadRecord.playing
-      .map(calculateInjuryPlayer)
+      .map(this.calculators.injuryCalculator.calculate)
       .map((injuried, i) => (injuried ? i : -1))
       .filter((el) => el >= 0);
     if (homePlayersInjuryCandidates.length > 0) {
@@ -283,9 +264,9 @@ class Simulator {
         type: "INJURY",
       });
       this.homeSquadRecord.out.push(injuriedPlayer);
-      if (!this.homeTeamIsHumanControlled) {
+      if (this.homeAITrainer) {
         // Home team is not human controlled, so let's do the substitution automatically
-        this.substituteIAInjuredPlayer(this.fixture.homeId, injuriedPlayer, updateArr);
+        this.substituteIAInjuredPlayer(this.homeAITrainer, injuriedPlayer, updateArr);
       }
     }
     if (awayPlayersInjuryCandidates.length > 0) {
@@ -295,9 +276,9 @@ class Simulator {
         time: this.clock,
         type: "INJURY",
       });
-      if (!this.awayTeamIsHumanControlled) {
+      if (this.awayAITrainer) {
         // Away team is not human controlled, so let's do the substitution automatically
-        this.substituteIAInjuredPlayer(this.fixture.awayId, injuriedPlayer, updateArr);
+        this.substituteIAInjuredPlayer(this.awayAITrainer, injuriedPlayer, updateArr);
       }
     }
   }
@@ -314,7 +295,7 @@ class Simulator {
     // If team has injuried player, let's not send off any player!
     if (!homeTeamHasInjuriedPlayer) {
       const homePlayersSentOffCandidates = this.homeSquadRecord.playing
-        .map(calculateRedCardPlayer)
+        .map(this.calculators.redcardCalculator.calculate)
         .map((sentOff, i) => (sentOff ? i : -1))
         .filter((el) => el >= 0);
       if (homePlayersSentOffCandidates.length > 0) {
@@ -325,8 +306,8 @@ class Simulator {
           time: this.clock,
           type: "REDCARD",
         });
-        if (!this.homeTeamIsHumanControlled) {
-          this.substituteIAAfterRedCard(this.fixture.homeId, sentOffPlayer, updateArr);
+        if (this.homeAITrainer) {
+          this.substituteIAAfterRedCard(this.homeAITrainer, sentOffPlayer, updateArr);
         }
       }
     }
@@ -336,21 +317,20 @@ class Simulator {
     );
     if (!awayTeamHasInjuriedPlayer) {
       const awayPlayersSentOffCandidates = this.awaySquadRecord.playing
-        .map(calculateRedCardPlayer)
+        .map(this.calculators.redcardCalculator.calculate)
         .map((sentOff, i) => (sentOff ? i : -1))
         .filter((el) => el >= 0);
       if (awayPlayersSentOffCandidates.length > 0) {
         const sentOffPlayer =
           this.awaySquadRecord.playing[pickRandom(awayPlayersSentOffCandidates)];
-        this.awaySquadRecord.playing = this.awaySquadRecord.playing.filter(
-          ({ id }) => id !== sentOffPlayer.id,
-        );
-        this.awaySquadRecord.out.push(sentOffPlayer);
         updateArr.newStories.push({
           playerId: sentOffPlayer.id,
           time: this.clock,
           type: "REDCARD",
         });
+        if (this.awayAITrainer) {
+          this.substituteIAAfterRedCard(this.awayAITrainer, sentOffPlayer, updateArr);
+        }
       }
     }
   }
@@ -407,6 +387,17 @@ class Simulator {
     return this.clock;
   }
 
+  get players() {
+    return [
+      ...this.squads.home.playing,
+      ...this.squads.home.bench,
+      ...this.squads.home.out,
+      ...this.squads.away.playing,
+      ...this.squads.away.bench,
+      ...this.squads.away.out,
+    ];
+  }
+
   getPlayer(playerId: IPlayer["id"]) {
     // Just to avoid creating unnecessary copies
     for (const player of this.homeSquadRecord.playing) {
@@ -427,6 +418,68 @@ class Simulator {
     for (const player of this.awaySquadRecord.bench) {
       if (player.id === playerId) return player;
     }
+  }
+
+  getPlayerPlayedTime(playerId: IPlayer["id"]) {
+    const player = this.getPlayer(playerId);
+    if (!player)
+      throw new Error(`Player#${playerId} is not part of the Fixture#${this.fixture.id}`);
+    const teamKey = player.teamId === this.fixture.homeId ? "homeSquadRecord" : "awaySquadRecord";
+
+    const { bench, playing } = this[teamKey];
+
+    // Player started on the bench and has not left bench
+    if (bench.find(({ id }) => id === playerId)) return 0;
+
+    if (playing.find(({ id }) => id === playerId)) {
+      // Player either:
+      // 1. Started the match playing and hasn't left
+      // 2. Came out of the bench and hasn't left
+      const cameInTime =
+        this.occurances.find(
+          ({ type, playerId: playerInId }) => type === "SUBSTITUTION" && playerId === playerInId,
+        )?.time ?? 0;
+      return this.clock - cameInTime;
+    }
+
+    // Player either:
+    // 1. Started the match but got subbed along the way
+    // 2. Came out the bench and got subbed (poor guy)
+    let cameInTime = 0;
+    for (const occurance of this.occurances) {
+      if (occurance.type !== "SUBSTITUTION") continue;
+      const { playerId: playerInId, subbedPlayerId, time } = occurance;
+      if (playerInId === playerId) {
+        cameInTime = time;
+      } else if (subbedPlayerId === player.id) {
+        return time - cameInTime;
+      }
+    }
+
+    // Player either:
+    // 1. Started the match but got sent off along the way
+    // 2. Came out the bench and got sent off along the way
+    for (const occurance of this.occurances) {
+      if (occurance.type !== "REDCARD") continue;
+      const { playerId: sentOffPlayerId, time } = occurance;
+      if (sentOffPlayerId === playerId) {
+        return time - cameInTime;
+      }
+    }
+
+    // Player either:
+    // 1. Started the match, got injured, but no player subbed him
+    // 2. Came out the bench, got injured, but no player subbed him
+    for (const occurance of this.occurances) {
+      if (occurance.type !== "INJURY") continue;
+      const { playerId: injuredPlayerId, time } = occurance;
+      if (injuredPlayerId === playerId) {
+        return time - cameInTime;
+      }
+    }
+
+    console.error({ simulation: this, player });
+    throw new Error("This should be unreached");
   }
 
   substitutePlayers(
@@ -477,6 +530,10 @@ class Simulator {
     const leavingPlayer = squadRecord.playing[leavingPlayerIndex];
     squadRecord.playing.splice(leavingPlayerIndex, 1);
     squadRecord.out.push(leavingPlayer);
+  }
+
+  async finish() {
+    await this.processors.postRoundProcessor.process();
   }
 }
 

@@ -34,3 +34,16 @@ export function arrayToHashMap<T extends { id: number }>(array: T[]) {
 export function pickRandom<T>(array: T[]) {
   return array[randomInt(0, array.length)];
 }
+
+export function splitBy<T>(array: T[], predicate: (value: T) => boolean): [T[], T[]] {
+  const truthy: T[] = [];
+  const falsy: T[] = [];
+  for (let i = 0; i < array.length; ++i) {
+    if (predicate(array[i])) {
+      truthy.push(array[i]);
+    } else {
+      falsy.push(array[i]);
+    }
+  }
+  return [truthy, falsy];
+}

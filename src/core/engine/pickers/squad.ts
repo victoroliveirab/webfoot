@@ -3,6 +3,9 @@ import { randomInt } from "@webfoot/utils/math";
 
 import { playerSorterByPower } from "../sorters/player";
 
+/**
+ * @deprecated create it inside the AI Trainers (also put it in the abstract class contract)
+ */
 export function pickSquadRandomly(players: IPlayer[]) {
   const squad = new Set<number>();
   while (squad.size < 10) {
