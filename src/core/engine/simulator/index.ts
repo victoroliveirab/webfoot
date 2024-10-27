@@ -2,7 +2,14 @@ import type { Story } from "@webfoot/core/db/types";
 import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
 import { pickRandom } from "@webfoot/utils/array";
 import { randomWeighted } from "@webfoot/utils/math";
+import PostRoundCalculator from "../calculators/post-round";
 
+import {
+  getCurrentScorelineOfSimulator,
+  getFixtureOfSimulator,
+  getSquadOfSimulator,
+  getSubsLeftOfSimulator,
+} from "./getters";
 import type {
   IGoalScoredCalculator,
   IInjuryCalculator,
@@ -14,13 +21,15 @@ import type {
   ITeamStrengthCalculator,
 } from "../interfaces";
 import { AITrainerStrategy, SquadRecord } from "../types";
-import aiTrainerFactory, { type AITrainer } from "../ai/trainer";
+import aiTrainerFactory from "../ai/trainer";
+import type AITrainer from "../ai/trainer/base";
 import {
-  getCurrentScorelineOfSimulator,
-  getFixtureOfSimulator,
-  getSquadOfSimulator,
-  getSubsLeftOfSimulator,
-} from "./getters";
+  MORALE_BOOST_DRAW,
+  MORALE_BOOST_LOST,
+  MORALE_BOOST_WIN,
+  MORALE_MAX,
+  MORALE_MIN,
+} from "../processors/constants";
 
 type SimulatorAITeam = {
   aiStrategy: AITrainerStrategy;
@@ -42,16 +51,17 @@ type SimulatorConstructorParams = {
   stadiumCapacity: number;
   calculators: {
     goalScoredCalculator: IGoalScoredCalculator;
-    injuryCalculator: IInjuryCalculator;
     injuredTimeCalculator: IInjuryTimeCalculator;
+    injuryCalculator: IInjuryCalculator;
     playerPowerChangePostFixtureCalculator: IPlayerPowerChangePostFixtureCalculator;
     redcardCalculator: IRedCardCalculator;
     suspensionTimeCalculator: ISuspensionTimeCalculator;
     teamStrengthCalculator: ITeamStrengthCalculator;
   };
-  processors: {
-    postRoundProcessor: IPostRoundCalculator;
-  };
+  // TODO: put this back later on
+  // processors: {
+  //   postRoundProcessor: IPostRoundCalculator;
+  // };
 };
 
 type TickUpdates = {
@@ -71,7 +81,8 @@ class Simulator {
   readonly awayMorale: number;
   protected clock: number = 0;
   readonly calculators: SimulatorConstructorParams["calculators"];
-  readonly processors: SimulatorConstructorParams["processors"];
+  // readonly processors: SimulatorConstructorParams["processors"];
+  readonly processors: { postRoundProcessor: IPostRoundCalculator };
   protected readonly homeAITrainer: AITrainer | null = null;
   protected readonly awayAITrainer: AITrainer | null = null;
   homeSubsLeft: number = 3;
@@ -83,7 +94,6 @@ class Simulator {
 
   constructor(params: SimulatorConstructorParams) {
     this.fixture = params.fixture;
-    this.processors = params.processors;
 
     if (getIsAI(params.homeTeam)) {
       const { aiStrategy, players } = params.homeTeam;
@@ -142,6 +152,34 @@ class Simulator {
     this.calculators = params.calculators;
 
     this.attendees = randomWeighted(1_000, params.stadiumCapacity, this.homeMorale);
+
+    // REFACTOR: eventually this should be injectable
+    this.processors = {
+      postRoundProcessor: new PostRoundCalculator({
+        calculators: {
+          injuryPeriod: this.calculators.injuredTimeCalculator,
+          suspensionPeriod: this.calculators.suspensionTimeCalculator,
+          playerPowerChange: this.calculators.playerPowerChangePostFixtureCalculator,
+        },
+        getters: {
+          attendees: () => this.attendees,
+          finalScoreline: () => this.currentScoreline,
+          players: () => this.players,
+          fixture: () => this.fixture,
+          morales: () => [this.homeMorale, this.awayMorale],
+          occurances: () => this.occurances,
+          playedTimeByPlayersIds: () =>
+            this.players.map(({ id }) => id).map(this.getPlayerPlayedTime),
+        },
+        maxMorale: MORALE_MAX,
+        minMorale: MORALE_MIN,
+        moraleBoostWin: MORALE_BOOST_WIN,
+        moraleBoostDraw: MORALE_BOOST_DRAW,
+        moraleBoostLoss: MORALE_BOOST_LOST,
+        awayTeamTicketMoneyShare: 0,
+        homeTeamTicketMoneyShare: 1,
+      }),
+    };
   }
 
   private getSquadByTeamId(teamId: ITeam["id"]) {
@@ -161,6 +199,8 @@ class Simulator {
     let awayGoals = updateArr.newScoreLine[1];
     const homePlayingSquad = this.homeSquadRecord.playing;
     const awayPlayingSquad = this.awaySquadRecord.playing;
+
+    console.log({ homePlayingSquad, awayPlayingSquad, fixtureId: this.fixture.id });
 
     // OPTIMIZE: cache this number and only recalculate on sub/injury/redcard
     const homeTeamStrength = this.calculators.teamStrengthCalculator.calculate(
@@ -249,11 +289,11 @@ class Simulator {
 
   private calculateInjuries(updateArr: TickUpdates) {
     const homePlayersInjuryCandidates = this.homeSquadRecord.playing
-      .map(this.calculators.injuryCalculator.calculate)
+      .map((player) => this.calculators.injuryCalculator.calculate(player))
       .map((injuried, i) => (injuried ? i : -1))
       .filter((el) => el >= 0);
     const awayPlayersInjuryCandidates = this.awaySquadRecord.playing
-      .map(this.calculators.injuryCalculator.calculate)
+      .map((player) => this.calculators.injuryCalculator.calculate(player))
       .map((injuried, i) => (injuried ? i : -1))
       .filter((el) => el >= 0);
     if (homePlayersInjuryCandidates.length > 0) {
@@ -295,7 +335,7 @@ class Simulator {
     // If team has injuried player, let's not send off any player!
     if (!homeTeamHasInjuriedPlayer) {
       const homePlayersSentOffCandidates = this.homeSquadRecord.playing
-        .map(this.calculators.redcardCalculator.calculate)
+        .map((player) => this.calculators.redcardCalculator.calculate(player))
         .map((sentOff, i) => (sentOff ? i : -1))
         .filter((el) => el >= 0);
       if (homePlayersSentOffCandidates.length > 0) {
@@ -317,7 +357,7 @@ class Simulator {
     );
     if (!awayTeamHasInjuriedPlayer) {
       const awayPlayersSentOffCandidates = this.awaySquadRecord.playing
-        .map(this.calculators.redcardCalculator.calculate)
+        .map((player) => this.calculators.redcardCalculator.calculate(player))
         .map((sentOff, i) => (sentOff ? i : -1))
         .filter((el) => el >= 0);
       if (awayPlayersSentOffCandidates.length > 0) {
@@ -336,6 +376,7 @@ class Simulator {
   }
 
   tick(): TickUpdates {
+    console.log({ scoreline: this.scoreline, clock: this.clock });
     const updates: TickUpdates = {
       newScoreLine: [this.scoreline[this.clock][0], this.scoreline[this.clock][1]],
       newStories: [],
@@ -396,6 +437,13 @@ class Simulator {
       ...this.squads.away.bench,
       ...this.squads.away.out,
     ];
+  }
+
+  get isHomeTeamAITrained() {
+    return !!this.homeAITrainer;
+  }
+  get isAwayTeamAITrained() {
+    return !!this.awayAITrainer;
   }
 
   getPlayer(playerId: IPlayer["id"]) {

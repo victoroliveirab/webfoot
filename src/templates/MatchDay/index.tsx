@@ -2,7 +2,6 @@ import { useContext, type Component, createSignal, For, Show, createEffect } fro
 import { useNavigate } from "@solidjs/router";
 
 import Clock from "@webfoot/components/Clock";
-import PostRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
 import ModalInjury from "./components/ModalInjury";
@@ -31,7 +30,12 @@ const TIMEOUT = 1000 / FPS;
 const MatchDay: Component = () => {
   const navigate = useNavigate();
   const round = useContext(RoundContext);
-  const { ready: simulationsReady, simulations, triggerUpdate } = useContext(SimulationsContext);
+  const {
+    humanTrainerTeams,
+    ready: simulationsReady,
+    simulations,
+    triggerUpdate,
+  } = useContext(SimulationsContext);
 
   const [clock, setClock] = createSignal(0);
   const [timer, setTimer] = createSignal<number | null>(null);
@@ -40,7 +44,7 @@ const MatchDay: Component = () => {
   let requireHumanActions: HumanActionRequired[] = [];
 
   createEffect(() => {
-    if (simulationsReady() && clock() === 0) setTimer(setInterval(tick, TIMEOUT));
+    // if (simulationsReady() && clock() === 0) setTimer(setInterval(tick, TIMEOUT));
   });
 
   function tick() {
@@ -54,7 +58,7 @@ const MatchDay: Component = () => {
         );
         for (const story of storiesThatNeedIntervention) {
           const storyPlayerTeam = simulation.getPlayer(story.playerId)!.teamId;
-          const isTeamControlledByHuman = round().humanTrainerTeams!.includes(storyPlayerTeam);
+          const isTeamControlledByHuman = humanTrainerTeams.includes(storyPlayerTeam);
           if (!isTeamControlledByHuman) continue;
           switch (story.type) {
             case "REDCARD": {
@@ -98,8 +102,7 @@ const MatchDay: Component = () => {
     }
     if (now === 45) {
       clearInterval(timer()!);
-      const trainerTeams = round().humanTrainerTeams!;
-      for (const teamId of trainerTeams) {
+      for (const teamId of humanTrainerTeams) {
         const { fixture } = fixtureSimulations.find(
           (simulation) =>
             simulation.fixture.homeId === teamId || simulation.fixture.awayId === teamId,
@@ -168,8 +171,9 @@ const MatchDay: Component = () => {
 
   async function finishRound() {
     const simulationEntities = Object.values(simulations());
-    const processor = new PostRoundProcessor(simulationEntities);
-    await processor.process();
+    for (const simulation of simulationEntities) {
+      await simulation.finish();
+    }
     navigate("/standings");
   }
 
@@ -197,6 +201,7 @@ const MatchDay: Component = () => {
       </For>
       <ModalTeam info={teamModalInfo} onClose={handleCloseTeamModal} />
       <ModalInjury info={injuryModalInfo} onClose={handleCloseInjuryModal} />
+      <button onClick={tick}>TICK</button>
     </Show>
   );
 };

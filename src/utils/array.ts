@@ -47,3 +47,16 @@ export function splitBy<T>(array: T[], predicate: (value: T) => boolean): [T[], 
   }
   return [truthy, falsy];
 }
+
+export function groupBy<T, K extends PropertyKey = keyof T>(
+  array: T[],
+  keyCalculator: (value: T) => K,
+) {
+  const object = {} as { [key in K]: T[] };
+  for (let i = 0; i < array.length; ++i) {
+    const key = keyCalculator(array[i]);
+    if (!object[key]) object[key] = [];
+    object[key].push(array[i]);
+  }
+  return object;
+}
