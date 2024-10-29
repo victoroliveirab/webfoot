@@ -1,14 +1,12 @@
 import type { Accessor } from "solid-js";
 
-import { defaultCalculators } from "@webfoot/core/engine/calculators/default";
-import { defaultProcessors } from "@webfoot/core/engine/processors/default";
-import postSeasonProcessor from "@webfoot/core/engine/processors/post-season";
-import Simulator from "@webfoot/core/engine/simulator";
-import standingSorter from "@webfoot/core/engine/sorters/standing";
 import { Championship, Fixture, League, Player, Standing, Team } from "@webfoot/core/models";
 import type { IChampionship, IFixture } from "@webfoot/core/models/types";
-
-import { updateStandings } from "../templates/MatchDay/helpers";
+import Simulator from "@webfoot/core/engine/simulator";
+import PostRoundProcessor from "@webfoot/core/engine/processors/post-round";
+import { pickSquadRandomly } from "@webfoot/core/engine/pickers/squad";
+import postSeasonProcessor from "@webfoot/core/engine/processors/post-season";
+import standingSorter from "@webfoot/core/engine/sorters/standing";
 
 type Params = {
   numberOfSeasons: number;
@@ -66,34 +64,34 @@ export default function useSimulateSeason(params: Params) {
           const awayTeam = await Team.getById(fixture.awayId);
           const homePlayers = await Player.getMultipleByIndex("teamId", fixture.homeId);
           const awayPlayers = await Player.getMultipleByIndex("teamId", fixture.awayId);
+          const homeSquad = pickSquadRandomly(homePlayers);
+          const awaySquad = pickSquadRandomly(awayPlayers);
           simulators.push(
             new Simulator({
               fixture,
-              calculators: defaultCalculators,
-              processors: defaultProcessors,
-              awayTeam: {
-                aiStrategy: "Standard",
-                morale: awayTeam.morale,
-                players: awayPlayers,
-              },
-              homeTeam: {
-                aiStrategy: "Standard",
-                morale: homeTeam.morale,
-                players: homePlayers,
-              },
+              awayMorale: awayTeam.morale,
+              homeMorale: homeTeam.morale,
               stadiumCapacity: homeTeam.currentStadiumCapacity,
+              awayInitialSquad: {
+                bench: awaySquad.substitutes,
+                playing: awaySquad.firstTeam,
+                out: [],
+              },
+              homeInitialSquad: {
+                bench: homeSquad.substitutes,
+                playing: homeSquad.firstTeam,
+                out: [],
+              },
+              homeTeamIsHumanControlled: false,
+              awayTeamIsHumanControlled: false,
             }),
           );
         }
         for (let i = 0; i < 90; ++i) {
           for (const simulation of simulators) simulation.tick();
         }
-        const fixturesToProcess: IFixture["id"][] = [];
-        for (const simulation of simulators) {
-          await simulation.finish();
-          fixturesToProcess.push(simulation.fixture.id);
-        }
-        await updateStandings(fixturesToProcess);
+        const processor = new PostRoundProcessor(simulators);
+        await processor.process();
       }
 
       // Finish season

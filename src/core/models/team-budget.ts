@@ -9,14 +9,14 @@ class TeamBudgetORM extends ORM<TeamBudget["type"], TeamBudget["indexes"]> {
     super.observeNewConnections(this);
   }
 
-  async creditAttendeesMoney(teamId: number, attendees: number, percentage: number = 1) {
+  async creditAttendeesMoney(teamId: number, attendees: number) {
     const team = await Team.getById(teamId);
     const teamBudget = await this.getById(team.budgetId);
     await this.update({
       ...teamBudget,
       earnings: {
         ...teamBudget.earnings,
-        tickets: teamBudget.earnings.tickets + attendees * team.currentTicketCost * percentage,
+        tickets: teamBudget.earnings.tickets + attendees * team.currentTicketCost,
       },
     });
     await Team.update({

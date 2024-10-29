@@ -1,1 +1,0 @@
-- On red card, allow goalkeeper to replace line player

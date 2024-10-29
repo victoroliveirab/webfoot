@@ -3,7 +3,7 @@ import { useContext, type Accessor, Show } from "solid-js";
 import DivInTeamColors from "@webfoot/components/DivInTeamColors";
 import Layout from "@webfoot/components/Layout";
 import Modal from "@webfoot/components/Modal";
-import type { IPlayer } from "@webfoot/core/models/types";
+import { IPlayer } from "@webfoot/core/models/types";
 
 import ActionTables from "./components/ActionTables";
 import Occurances from "./components/Occurances";
@@ -18,7 +18,7 @@ type Props = {
 
 const ModalTeam = ({ info: infoIds, onClose }: Props) => {
   const round = useContext(RoundContext);
-  const { humanTrainerTeams, simulations, triggerUpdate } = useContext(SimulationsContext);
+  const { simulations, triggerUpdate } = useContext(SimulationsContext);
 
   const fixture = () => {
     if (!infoIds()) return null;
@@ -56,7 +56,7 @@ const ModalTeam = ({ info: infoIds, onClose }: Props) => {
   };
   const showSubstituteButton = () => {
     if (!team()) return false;
-    if (!humanTrainerTeams.includes(team()!.id)) return false;
+    if (!round().humanTrainerTeams!.includes(team()!.id)) return false;
     const subsLeftKey =
       team()!.id === simulation()!.fixture.homeId ? "homeSubsLeft" : "awaySubsLeft";
     return simulation()![subsLeftKey] > 0;
