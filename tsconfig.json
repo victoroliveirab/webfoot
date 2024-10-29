@@ -10,7 +10,8 @@
     "jsxImportSource": "solid-js",
     "types": [
       "vite/client",
-      "vitest/globals"
+      "vitest/globals",
+      "./src/utils/tests.d.ts"
     ],
     "noEmit": true,
     "isolatedModules": true,
