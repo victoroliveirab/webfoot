@@ -262,7 +262,6 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
             firstTeam: [],
             substitutes: [],
           },
-          benchSize: 5,
           occurred: false,
           round,
         });
@@ -290,7 +289,6 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
             firstTeam: [],
             substitutes: [],
           },
-          benchSize: 5,
           occurred: false,
           round,
         });

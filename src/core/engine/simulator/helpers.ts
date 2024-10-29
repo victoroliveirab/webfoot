@@ -53,18 +53,3 @@ export function getGreatestPowerOfEachPosition(players: IPlayer[]) {
   }
   return bestByPosition;
 }
-export function getGreatestPower(players: IPlayer[]) {
-  if (players.length === 0) return null;
-  let bestPlayer = players[0];
-  for (let i = 1; i < players.length; ++i) {
-    const player = players[i];
-    if (bestPlayer.power < player.power) {
-      bestPlayer = player;
-    } else if (bestPlayer.power === player.power) {
-      if (!bestPlayer.star && player.star) {
-        bestPlayer = player;
-      }
-    }
-  }
-  return bestPlayer;
-}

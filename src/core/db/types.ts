@@ -127,7 +127,6 @@ export type Fixture = ORMBlueprint<
     awayGoals: number;
     homeSquad: FixtureSquad;
     awaySquad: FixtureSquad;
-    benchSize: number;
   },
   "championshipId" | "homeId" | "awayId" | "homeAwayHash"
 >;

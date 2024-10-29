@@ -1,7 +1,7 @@
 import { type Accessor, createSignal } from "solid-js";
 
 import Button from "@webfoot/components/Button";
-import type { SquadRecord } from "@webfoot/core/engine/types";
+import { type SquadRecord } from "@webfoot/core/engine/simulator";
 import type { IPlayer, ITeam } from "@webfoot/core/models/types";
 
 import Table from "./components/Table";

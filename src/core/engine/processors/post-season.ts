@@ -271,7 +271,6 @@ export default async function postSeasonProcessor(year: number) {
             substitutes: [],
           },
           occurred: false,
-          benchSize: 5,
           round,
         });
       }
@@ -299,7 +298,6 @@ export default async function postSeasonProcessor(year: number) {
             substitutes: [],
           },
           occurred: false,
-          benchSize: 5,
           round,
         });
       }

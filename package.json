@@ -8,7 +8,6 @@
     "build": "vite build",
     "serve": "vite preview",
     "lint": "eslint . --ignore-pattern \"*.config.js\"",
-    "typecheck": "tsc --project tsconfig.json",
     "test": "vitest"
   },
   "license": "MIT",

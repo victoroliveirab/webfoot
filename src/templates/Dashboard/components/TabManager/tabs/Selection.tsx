@@ -36,12 +36,6 @@ const Selection = () => {
 
   function submit() {
     if (!isSquadReady()) return;
-    const firstTeam = selectedPlayers().firstTeam.map(({ id }) => id);
-    const substitutes = selectedPlayers().substitutes.map(({ id }) => id);
-    const notSelected = club().players!.filter(
-      (player) => !firstTeam.includes(player.id) && !substitutes.includes(player.id),
-    );
-
     navigate("/match-day", {
       state: {
         // FIXME: when introducing multiplayers, this has to be taken into account
@@ -50,9 +44,8 @@ const Selection = () => {
           1: {
             teamId: club().team!.id,
             squad: {
-              firstTeam,
-              substitutes,
-              notSelected,
+              firstTeam: selectedPlayers().firstTeam.map(({ id }) => id),
+              substitutes: selectedPlayers().substitutes.map(({ id }) => id),
             },
           },
         },
