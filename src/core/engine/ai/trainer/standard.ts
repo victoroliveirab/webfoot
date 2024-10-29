@@ -27,7 +27,6 @@ export default class StandardAITrainer extends AITrainer {
   }
 
   pickFixtureSquad(availablePlayers: IPlayer[]) {
-    console.log({ availablePlayers });
     if (availablePlayers.every(({ position }) => position !== "G")) {
       // If there are no goalkeepers available, just return the best players and that's it
       availablePlayers.sort(playerSorterByPower);
@@ -79,21 +78,28 @@ export default class StandardAITrainer extends AITrainer {
       const bestAttacker = playersSortedByPowerAndPosition.A[0];
       if (
         bestDefender &&
-        bestDefender.power > bestMidfielder?.power &&
-        bestDefender.power > bestAttacker?.power
+        bestDefender.power > (bestMidfielder?.power ?? 0) &&
+        bestDefender.power > (bestAttacker?.power ?? 0)
       ) {
         playing.push(bestDefender);
         playersSortedByPowerAndPosition.D.shift();
       } else if (
         bestMidfielder &&
-        bestMidfielder.power >= bestDefender?.power &&
-        bestMidfielder.power >= bestAttacker?.power
+        bestMidfielder.power >= (bestDefender?.power ?? 0) &&
+        bestMidfielder.power >= (bestAttacker?.power ?? 0)
       ) {
         playing.push(bestMidfielder);
         playersSortedByPowerAndPosition.M.shift();
-      } else {
+      } else if (
+        bestAttacker &&
+        bestAttacker.power >= (bestDefender?.power ?? 0) &&
+        bestAttacker.power >= (bestMidfielder?.power ?? 0)
+      ) {
         playing.push(bestAttacker);
         playersSortedByPowerAndPosition.A.shift();
+      } else {
+        // Only goalkeepers left
+        break;
       }
     }
 
@@ -115,6 +121,8 @@ export default class StandardAITrainer extends AITrainer {
 
     // If there are enough spots on the bench for all players left, just put them in
     if (spotsLeftOnBench >= unselectedPlayersLeft) {
+      while (playersSortedByPowerAndPosition.G[0])
+        bench.push(playersSortedByPowerAndPosition.G.shift()!);
       while (playersSortedByPowerAndPosition.D[0])
         bench.push(playersSortedByPowerAndPosition.D.shift()!);
       while (playersSortedByPowerAndPosition.M[0])
@@ -129,28 +137,33 @@ export default class StandardAITrainer extends AITrainer {
 
     // There are more players available than bench spots
     while (bench.length < this.getters.fixture().benchSize) {
+      const bestGoalkeeper = playersSortedByPowerAndPosition.G[0];
       const bestDefender = playersSortedByPowerAndPosition.D[0];
       const bestMidfielder = playersSortedByPowerAndPosition.M[0];
       const bestAttacker = playersSortedByPowerAndPosition.A[0];
-      // FIXME: this should not be necessary, this condition should be satisfied by previous logic
-      if (!bestDefender && !bestMidfielder && !bestAttacker) break;
-      console.log({ bestDefender, bestMidfielder, bestAttacker, bench });
+      if (!bestDefender && !bestMidfielder && !bestAttacker) {
+        if (bestGoalkeeper) {
+          bench.push(bestGoalkeeper);
+          playersSortedByPowerAndPosition.G.shift();
+        }
+        break;
+      }
       if (
         bestDefender &&
         bestDefender.power > (bestMidfielder?.power ?? 0) &&
         bestDefender.power > (bestAttacker?.power ?? 0)
       ) {
-        playing.push(bestDefender);
+        bench.push(bestDefender);
         playersSortedByPowerAndPosition.D.shift();
       } else if (
         bestMidfielder &&
         bestMidfielder.power >= (bestDefender?.power ?? 0) &&
         bestMidfielder.power >= (bestAttacker?.power ?? 0)
       ) {
-        playing.push(bestMidfielder);
+        bench.push(bestMidfielder);
         playersSortedByPowerAndPosition.M.shift();
       } else {
-        playing.push(bestAttacker);
+        bench.push(bestAttacker);
         playersSortedByPowerAndPosition.A.shift();
       }
     }

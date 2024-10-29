@@ -1,8 +1,9 @@
 import type { Story } from "@webfoot/core/db/types";
+import { Fixture, Player, Team, TeamBudget } from "@webfoot/core/models";
 import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
-import { pickRandom } from "@webfoot/utils/array";
+import { arrayToHashMap, pickRandom } from "@webfoot/utils/array";
 import { randomWeighted } from "@webfoot/utils/math";
-import PostRoundCalculator from "../calculators/post-round";
+import type { PatchObject } from "@webfoot/utils/types";
 
 import {
   getCurrentScorelineOfSimulator,
@@ -13,23 +14,17 @@ import {
 import type {
   IGoalScoredCalculator,
   IInjuryCalculator,
-  IInjuryTimeCalculator,
-  IPlayerPowerChangePostFixtureCalculator,
-  IPostRoundCalculator,
+  IInjuryStoryProcessor,
+  IMoraleChangeProcessor,
+  IPlayerPowerChangePostFixtureProcessor,
   IRedCardCalculator,
-  ISuspensionTimeCalculator,
+  IRedCardStoryProcessor,
   ITeamStrengthCalculator,
 } from "../interfaces";
 import { AITrainerStrategy, SquadRecord } from "../types";
 import aiTrainerFactory from "../ai/trainer";
 import type AITrainer from "../ai/trainer/base";
-import {
-  MORALE_BOOST_DRAW,
-  MORALE_BOOST_LOST,
-  MORALE_BOOST_WIN,
-  MORALE_MAX,
-  MORALE_MIN,
-} from "../processors/constants";
+import { getIsPlayerEligibleToPlay } from "../helpers/player";
 
 type SimulatorAITeam = {
   aiStrategy: AITrainerStrategy;
@@ -39,10 +34,10 @@ type SimulatorAITeam = {
 
 type SimulatorHumanTeam = {
   morale: number;
-  squad: Omit<SquadRecord, "out">;
+  squad: SquadRecord;
 };
 
-type SimulatorTeam = SimulatorAITeam | SimulatorHumanTeam;
+export type SimulatorTeam = SimulatorAITeam | SimulatorHumanTeam;
 
 type SimulatorConstructorParams = {
   awayTeam: SimulatorTeam;
@@ -51,17 +46,17 @@ type SimulatorConstructorParams = {
   stadiumCapacity: number;
   calculators: {
     goalScoredCalculator: IGoalScoredCalculator;
-    injuredTimeCalculator: IInjuryTimeCalculator;
     injuryCalculator: IInjuryCalculator;
-    playerPowerChangePostFixtureCalculator: IPlayerPowerChangePostFixtureCalculator;
     redcardCalculator: IRedCardCalculator;
-    suspensionTimeCalculator: ISuspensionTimeCalculator;
     teamStrengthCalculator: ITeamStrengthCalculator;
   };
-  // TODO: put this back later on
-  // processors: {
-  //   postRoundProcessor: IPostRoundCalculator;
-  // };
+  processors: {
+    awayTeamMoraleChangeProcessor: IMoraleChangeProcessor;
+    homeTeamMoraleChangeProcessor: IMoraleChangeProcessor;
+    injuryStoryProcessor: IInjuryStoryProcessor;
+    playerPowerChangeProcessor: IPlayerPowerChangePostFixtureProcessor;
+    redCardStoryProcessor: IRedCardStoryProcessor;
+  };
 };
 
 type TickUpdates = {
@@ -77,12 +72,13 @@ class Simulator {
   fixture: IFixture;
   protected homeSquadRecord: SquadRecord;
   protected awaySquadRecord: SquadRecord;
+  protected homeUnusedPlayers: IPlayer[];
+  protected awayUnusedPlayers: IPlayer[];
   readonly homeMorale: number;
   readonly awayMorale: number;
   protected clock: number = 0;
   readonly calculators: SimulatorConstructorParams["calculators"];
-  // readonly processors: SimulatorConstructorParams["processors"];
-  readonly processors: { postRoundProcessor: IPostRoundCalculator };
+  readonly processors: SimulatorConstructorParams["processors"];
   protected readonly homeAITrainer: AITrainer | null = null;
   protected readonly awayAITrainer: AITrainer | null = null;
   homeSubsLeft: number = 3;
@@ -107,16 +103,22 @@ class Simulator {
         },
         teamId: this.fixture.homeId,
       });
+      const homeSquad = homeAITrainer.pickFixtureSquad(players.filter(getIsPlayerEligibleToPlay));
+      const homeSelectedPlayersIds = [
+        ...homeSquad.playing.map(({ id }) => id),
+        ...homeSquad.bench.map(({ id }) => id),
+      ];
+      this.homeUnusedPlayers = players.filter(({ id }) => !homeSelectedPlayersIds.includes(id));
       this.homeSquadRecord = {
-        ...homeAITrainer.pickFixtureSquad(
-          players.filter((player) => player.injuryPeriod === 0 && player.suspensionPeriod === 0),
-        ),
+        ...homeSquad,
         out: [],
       };
       this.homeAITrainer = homeAITrainer;
     } else {
+      const { out, ...squad } = params.homeTeam.squad;
+      this.homeUnusedPlayers = out;
       this.homeSquadRecord = {
-        ...params.homeTeam.squad,
+        ...squad,
         out: [],
       };
     }
@@ -133,16 +135,22 @@ class Simulator {
         },
         teamId: this.fixture.awayId,
       });
+      const awaySquad = awayAITrainer.pickFixtureSquad(players.filter(getIsPlayerEligibleToPlay));
+      const awaySelectedPlayersIds = [
+        ...awaySquad.playing.map(({ id }) => id),
+        ...awaySquad.bench.map(({ id }) => id),
+      ];
+      this.awayUnusedPlayers = players.filter(({ id }) => !awaySelectedPlayersIds.includes(id));
       this.awaySquadRecord = {
-        ...awayAITrainer.pickFixtureSquad(
-          players.filter((player) => player.injuryPeriod === 0 && player.suspensionPeriod === 0),
-        ),
+        ...awaySquad,
         out: [],
       };
       this.awayAITrainer = awayAITrainer;
     } else {
+      const { out, ...squad } = params.awayTeam.squad;
+      this.awayUnusedPlayers = out;
       this.awaySquadRecord = {
-        ...params.awayTeam.squad,
+        ...squad,
         out: [],
       };
     }
@@ -153,33 +161,7 @@ class Simulator {
 
     this.attendees = randomWeighted(1_000, params.stadiumCapacity, this.homeMorale);
 
-    // REFACTOR: eventually this should be injectable
-    this.processors = {
-      postRoundProcessor: new PostRoundCalculator({
-        calculators: {
-          injuryPeriod: this.calculators.injuredTimeCalculator,
-          suspensionPeriod: this.calculators.suspensionTimeCalculator,
-          playerPowerChange: this.calculators.playerPowerChangePostFixtureCalculator,
-        },
-        getters: {
-          attendees: () => this.attendees,
-          finalScoreline: () => this.currentScoreline,
-          players: () => this.players,
-          fixture: () => this.fixture,
-          morales: () => [this.homeMorale, this.awayMorale],
-          occurances: () => this.occurances,
-          playedTimeByPlayersIds: () =>
-            this.players.map(({ id }) => id).map(this.getPlayerPlayedTime),
-        },
-        maxMorale: MORALE_MAX,
-        minMorale: MORALE_MIN,
-        moraleBoostWin: MORALE_BOOST_WIN,
-        moraleBoostDraw: MORALE_BOOST_DRAW,
-        moraleBoostLoss: MORALE_BOOST_LOST,
-        awayTeamTicketMoneyShare: 0,
-        homeTeamTicketMoneyShare: 1,
-      }),
-    };
+    this.processors = params.processors;
   }
 
   private getSquadByTeamId(teamId: ITeam["id"]) {
@@ -199,8 +181,6 @@ class Simulator {
     let awayGoals = updateArr.newScoreLine[1];
     const homePlayingSquad = this.homeSquadRecord.playing;
     const awayPlayingSquad = this.awaySquadRecord.playing;
-
-    console.log({ homePlayingSquad, awayPlayingSquad, fixtureId: this.fixture.id });
 
     // OPTIMIZE: cache this number and only recalculate on sub/injury/redcard
     const homeTeamStrength = this.calculators.teamStrengthCalculator.calculate(
@@ -348,6 +328,8 @@ class Simulator {
         });
         if (this.homeAITrainer) {
           this.substituteIAAfterRedCard(this.homeAITrainer, sentOffPlayer, updateArr);
+        } else {
+          this.removePlayingPlayer(this.fixture.homeId, sentOffPlayer.id);
         }
       }
     }
@@ -370,13 +352,14 @@ class Simulator {
         });
         if (this.awayAITrainer) {
           this.substituteIAAfterRedCard(this.awayAITrainer, sentOffPlayer, updateArr);
+        } else {
+          this.removePlayingPlayer(this.fixture.awayId, sentOffPlayer.id);
         }
       }
     }
   }
 
   tick(): TickUpdates {
-    console.log({ scoreline: this.scoreline, clock: this.clock });
     const updates: TickUpdates = {
       newScoreLine: [this.scoreline[this.clock][0], this.scoreline[this.clock][1]],
       newStories: [],
@@ -398,7 +381,7 @@ class Simulator {
   }
 
   get currentScoreline() {
-    return this.scoreline[this.clock];
+    return this.scoreline[this.scoreline.length - 1];
   }
 
   get lastOccurance() {
@@ -468,10 +451,8 @@ class Simulator {
     }
   }
 
-  getPlayerPlayedTime(playerId: IPlayer["id"]) {
-    const player = this.getPlayer(playerId);
-    if (!player)
-      throw new Error(`Player#${playerId} is not part of the Fixture#${this.fixture.id}`);
+  getPlayerPlayedTime(player: IPlayer) {
+    const playerId = player.id;
     const teamKey = player.teamId === this.fixture.homeId ? "homeSquadRecord" : "awaySquadRecord";
 
     const { bench, playing } = this[teamKey];
@@ -580,8 +561,173 @@ class Simulator {
     squadRecord.out.push(leavingPlayer);
   }
 
+  protected async postFixtureProcessNonSelectedPlayers() {
+    let patchObj: PatchObject<IPlayer> = { id: 0 };
+    for (const player of [...this.homeUnusedPlayers, ...this.awayUnusedPlayers]) {
+      if (player.injuryPeriod > 0) {
+        patchObj.id = player.id;
+        patchObj.injuryPeriod = player.injuryPeriod - 1;
+      }
+      if (player.suspensionPeriod > 0) {
+        patchObj.id = player.id;
+        patchObj.suspensionPeriod = player.suspensionPeriod - 1;
+      }
+      const newPower = this.processors.playerPowerChangeProcessor.calculateNewPower(player, 0);
+      if (newPower !== player.power) {
+        patchObj.id = player.id;
+        patchObj.power = newPower;
+      }
+      // Something in the player changed
+      if (patchObj.id > 0) {
+        await Player.patch(patchObj);
+        patchObj.id = 0;
+      }
+    }
+  }
+
+  protected async postFixturePreProcessFixtureOccurances() {
+    const selectedPlayers = arrayToHashMap(this.players);
+    const impactedPlayers = new Map<IPlayer["id"], PatchObject<IPlayer>>();
+    for (const { playerId, time, type } of this.occurances) {
+      if (!impactedPlayers.get(playerId)) {
+        impactedPlayers.set(playerId, { id: playerId });
+      }
+      const obj = impactedPlayers.get(playerId)!;
+      switch (type) {
+        case "REDCARD": {
+          const suspensionPeriod = this.processors.redCardStoryProcessor.calculateSuspensionPeriod(
+            selectedPlayers[playerId],
+            time,
+          );
+          impactedPlayers.set(playerId, {
+            ...obj,
+            suspensionPeriod,
+          });
+          break;
+        }
+        case "INJURY": {
+          const injuryPeriod = this.processors.injuryStoryProcessor.calculateInjuryPeriod(
+            selectedPlayers[playerId],
+            time,
+          );
+          impactedPlayers.set(playerId, {
+            ...obj,
+            injuryPeriod,
+          });
+          break;
+        }
+        case "GOAL_REGULAR":
+        case "PENALTI_SCORED": {
+          const currentStats = obj.stats ?? selectedPlayers[playerId].stats;
+          impactedPlayers.set(playerId, {
+            ...obj,
+            stats: {
+              ...currentStats,
+              goals: currentStats.goals + 1,
+              seasonGoals: currentStats.seasonGoals + 1,
+            },
+          });
+          break;
+        }
+      }
+    }
+    return impactedPlayers;
+  }
+
+  protected async postFixtureProcessInvolvedPlayers(
+    playersUpdates: Map<IPlayer["id"], PatchObject<IPlayer>>,
+  ) {
+    for (const player of this.players) {
+      const playerUpdates = playersUpdates.get(player.id);
+      const newSeasonGoals = playerUpdates?.stats?.seasonGoals ?? player.stats.seasonGoals;
+      const newGoals = playerUpdates?.stats?.goals ?? player.stats.goals;
+      const newGames = player.stats.games + 1;
+      const newInjuries = playerUpdates?.injuryPeriod
+        ? player.stats.injuries + 1
+        : player.stats.injuries;
+      const newRedCards = playerUpdates?.suspensionPeriod
+        ? player.stats.redcards + 1
+        : player.stats.redcards;
+      const newSuspensionPeriod = playerUpdates?.suspensionPeriod ?? 0;
+      const newInjuryPeriod = playerUpdates?.injuryPeriod ?? 0;
+      const playedTime = this.getPlayerPlayedTime(player);
+      const newPower = this.processors.playerPowerChangeProcessor.calculateNewPower(
+        player,
+        playedTime,
+        newInjuryPeriod,
+      );
+      await Player.patch({
+        id: player.id,
+        stats: {
+          seasonGoals: newSeasonGoals,
+          goals: newGoals,
+          games: newGames,
+          injuries: newInjuries,
+          redcards: newRedCards,
+        },
+        injuryPeriod: newInjuryPeriod,
+        suspensionPeriod: newSuspensionPeriod,
+        power: newPower,
+      });
+    }
+  }
+
+  protected async postFixtureProcessTeamsFinances() {
+    const { awayId, homeId } = this.fixture;
+    // TODO: make this come from a processor
+
+    await TeamBudget.creditAttendeesMoney(homeId, this.attendees);
+    await TeamBudget.debitPlayersSalaries(awayId);
+    await TeamBudget.debitPlayersSalaries(homeId);
+  }
+
+  protected async postFixtureProcessFixtureEntity() {
+    const [homeGoals, awayGoals] = this.currentScoreline;
+    await Fixture.patch({
+      id: this.fixture.id,
+      homeGoals,
+      awayGoals,
+      attendees: this.attendees,
+      occurred: true,
+    });
+  }
+
+  protected async postFixtureProcessTeamsMorales() {
+    const { awayId, homeId } = this.fixture;
+    const [homeGoals, awayGoals] = this.currentScoreline;
+    const homeResult = homeGoals > awayGoals ? "W" : homeGoals < awayGoals ? "L" : "D";
+    const newHomeMorale = this.processors.homeTeamMoraleChangeProcessor.calculateNewMorale(
+      this.homeMorale,
+      homeResult,
+    );
+    const awayResult = awayGoals > homeGoals ? "W" : awayGoals < homeGoals ? "L" : "D";
+    const newAwayMorale = this.processors.awayTeamMoraleChangeProcessor.calculateNewMorale(
+      this.awayMorale,
+      awayResult,
+    );
+    await Team.patch({
+      id: homeId,
+      morale: newHomeMorale,
+    });
+    await Team.patch({
+      id: awayId,
+      morale: newAwayMorale,
+    });
+  }
+
   async finish() {
-    await this.processors.postRoundProcessor.process();
+    // 1. Process non selected players
+    await this.postFixtureProcessNonSelectedPlayers();
+    // 2. Process occurances
+    const playersUpdates = await this.postFixturePreProcessFixtureOccurances();
+    // 3. Update players
+    await this.postFixtureProcessInvolvedPlayers(playersUpdates);
+    // 4. Update team finances
+    await this.postFixtureProcessTeamsFinances();
+    // 5. Update fixture entity
+    await this.postFixtureProcessFixtureEntity();
+    // 6. Update teams morales
+    await this.postFixtureProcessTeamsMorales();
   }
 }
 

@@ -1,7 +1,7 @@
 import type { IPlayer } from "@webfoot/core/models/types";
 import { randomInt } from "@webfoot/utils/math";
 
-import type { ISuspensionTimeCalculator } from "../interfaces";
+import type { IRedCardStoryProcessor } from "../interfaces";
 
 type Params = {
   /** How much the time when the redcard occurred affects the suspension time */
@@ -24,10 +24,10 @@ type Params = {
   maxSuspensionTime: number;
 };
 
-export default class SuspensionTimeCalculator implements ISuspensionTimeCalculator {
+export default class RedCardStoryProcessor implements IRedCardStoryProcessor {
   constructor(private readonly params: Params) {}
 
-  calculate(player: IPlayer, redCardTime: number) {
+  calculateSuspensionPeriod(player: IPlayer, redCardTime: number) {
     // More indisciplined players tend to make more violent faults
     const disciplineFactor = (10 - player.discipline) / 10;
     // Earlier redcards must have been a more violent fault

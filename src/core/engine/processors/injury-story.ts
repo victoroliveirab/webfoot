@@ -1,7 +1,7 @@
 import type { IPlayer } from "@webfoot/core/models/types";
 import { normalRandomInt } from "@webfoot/utils/math";
 
-import { IInjuryTimeCalculator } from "../interfaces";
+import type { IInjuryStoryProcessor } from "../interfaces";
 
 type Params = {
   /** Player's injury proneness influence on the injury time */
@@ -14,10 +14,10 @@ type Params = {
   maxTimeInjured: number;
 };
 
-export default class InjuryTimeCalculator implements IInjuryTimeCalculator {
+export default class InjuryStoryProcessor implements IInjuryStoryProcessor {
   constructor(private readonly params: Params) {}
 
-  calculate(player: IPlayer, matchTime: number) {
+  calculateInjuryPeriod(player: IPlayer, matchTime: number) {
     const playerInjuryProneness = player.internal.injuryProneness;
     const numberOfPreviousInjuries = player.stats.injuries;
     const combinedFactor =

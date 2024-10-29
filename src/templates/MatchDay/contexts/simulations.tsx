@@ -8,12 +8,12 @@ import {
 } from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
 
-import Simulator from "@webfoot/core/engine/simulator";
+import { defaultCalculators } from "@webfoot/core/engine/calculators/default";
+import { defaultProcessors } from "@webfoot/core/engine/processors/default";
+import Simulator, { SimulatorTeam } from "@webfoot/core/engine/simulator";
 import type { IFixture, IPlayer, ITeam, ITrainer } from "@webfoot/core/models/types";
 
 import { RoundContext } from "./round";
-import { GameLoop } from "@webfoot/core/models";
-import { defaultCalculators } from "@webfoot/core/engine/calculators/default";
 
 type LocationState = {
   squadsByTrainer: Record<
@@ -22,6 +22,7 @@ type LocationState = {
       squad: {
         firstTeam: IPlayer["id"][];
         substitutes: IPlayer["id"][];
+        notSelected: IPlayer["id"][];
       };
       teamId: ITeam["id"];
     }
@@ -67,6 +68,82 @@ export default function SimulationsProvider(props: ParentProps) {
     updates: 0,
   });
 
+  function simulatorFactory(fixture: IFixture) {
+    const homeTeamIsHumanControlled = trainersTeams.find(({ teamId }) => teamId === fixture.homeId);
+    const awayTeamIsHumanControlled = trainersTeams.find(({ teamId }) => teamId === fixture.awayId);
+
+    let simulatorAwayTeam: SimulatorTeam;
+    const awayTeam = round().teams![fixture.awayId];
+    const awayMorale = awayTeam.morale;
+    const awayPlayers = round().players![awayTeam.id];
+
+    if (awayTeamIsHumanControlled) {
+      const playing = awayPlayers.filter((player) =>
+        awayTeamIsHumanControlled.squad.firstTeam.includes(player.id),
+      );
+      const bench = awayPlayers.filter((player) =>
+        awayTeamIsHumanControlled.squad.substitutes.includes(player.id),
+      );
+      const out = awayPlayers.filter((player) =>
+        awayTeamIsHumanControlled.squad.notSelected.includes(player.id),
+      );
+      simulatorAwayTeam = {
+        squad: {
+          playing,
+          bench,
+          out,
+        },
+        morale: awayMorale,
+      };
+    } else {
+      simulatorAwayTeam = {
+        aiStrategy: "Standard",
+        morale: awayMorale,
+        players: awayPlayers,
+      };
+    }
+
+    let simulatorHomeTeam: SimulatorTeam;
+    const homeTeam = round().teams![fixture.homeId];
+    const homeMorale = homeTeam.morale;
+    const homePlayers = round().players![homeTeam.id];
+
+    if (homeTeamIsHumanControlled) {
+      const playing = homePlayers.filter((player) =>
+        homeTeamIsHumanControlled.squad.firstTeam.includes(player.id),
+      );
+      const bench = homePlayers.filter((player) =>
+        homeTeamIsHumanControlled.squad.substitutes.includes(player.id),
+      );
+      const out = homePlayers.filter((player) =>
+        homeTeamIsHumanControlled.squad.notSelected.includes(player.id),
+      );
+      simulatorHomeTeam = {
+        squad: {
+          playing,
+          bench,
+          out,
+        },
+        morale: homeMorale,
+      };
+    } else {
+      simulatorHomeTeam = {
+        aiStrategy: "Standard",
+        morale: homeMorale,
+        players: homePlayers,
+      };
+    }
+
+    return new Simulator({
+      awayTeam: simulatorAwayTeam,
+      calculators: defaultCalculators,
+      fixture,
+      homeTeam: simulatorHomeTeam,
+      processors: defaultProcessors,
+      stadiumCapacity: homeTeam.currentStadiumCapacity,
+    });
+  }
+
   createEffect(() => {
     if (round().ready) {
       const simulations: Simulations = {};
@@ -74,64 +151,7 @@ export default function SimulationsProvider(props: ParentProps) {
       for (const championshipId of allChampionshipsIds) {
         const allFixtures = round().fixtures![+championshipId];
         for (const fixture of Object.values(allFixtures)) {
-          const homeTeamIsHumanControlled = trainersTeams.find(
-            ({ teamId }) => teamId === fixture.homeId,
-          );
-          const awayTeamIsHumanControlled = trainersTeams.find(
-            ({ teamId }) => teamId === fixture.awayId,
-          );
-          const simulator = new Simulator({
-            awayTeam: awayTeamIsHumanControlled
-              ? {
-                  morale: round().teams![fixture.awayId].morale,
-                  squad: {
-                    // REFACTOR: improve this
-                    playing: awayTeamIsHumanControlled.squad.firstTeam.map(
-                      (id) =>
-                        round()!.players![fixture.awayId].find(
-                          ({ id: playerId }) => id === playerId,
-                        )!,
-                    ),
-                    bench: awayTeamIsHumanControlled.squad.substitutes.map(
-                      (id) =>
-                        round()!.players![fixture.awayId].find(
-                          ({ id: playerId }) => id === playerId,
-                        )!,
-                    ),
-                  },
-                }
-              : {
-                  aiStrategy: "Standard",
-                  morale: round().teams![fixture.awayId].morale,
-                  players: round()!.players![fixture.awayId],
-                },
-            calculators: defaultCalculators,
-            fixture,
-            homeTeam: homeTeamIsHumanControlled
-              ? {
-                  morale: round().teams![fixture.homeId].morale,
-                  squad: {
-                    playing: homeTeamIsHumanControlled.squad.firstTeam.map(
-                      (id) =>
-                        round()!.players![fixture.homeId].find(
-                          ({ id: playerId }) => id === playerId,
-                        )!,
-                    ),
-                    bench: homeTeamIsHumanControlled.squad.substitutes.map(
-                      (id) =>
-                        round()!.players![fixture.homeId].find(
-                          ({ id: playerId }) => id === playerId,
-                        )!,
-                    ),
-                  },
-                }
-              : {
-                  aiStrategy: "Standard",
-                  morale: round().teams![fixture.homeId].morale,
-                  players: round()!.players![fixture.homeId],
-                },
-            stadiumCapacity: round().teams![fixture.homeId].currentStadiumCapacity,
-          });
+          const simulator = simulatorFactory(fixture);
           simulations[fixture.id] = simulator;
         }
       }

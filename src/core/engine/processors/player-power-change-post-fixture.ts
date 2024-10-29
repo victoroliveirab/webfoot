@@ -1,7 +1,7 @@
 import type { IPlayer } from "@webfoot/core/models/types";
 import { clamp, normalRandomInt } from "@webfoot/utils/math";
 
-import type { IPlayerPowerChangePostFixtureCalculator } from "../interfaces";
+import type { IPlayerPowerChangePostFixtureProcessor } from "../interfaces";
 
 type Params = {
   /** Function to calculate the probability of a player decreasing power after a match */
@@ -14,8 +14,8 @@ type Params = {
   increaseVsDecreaseTimeThreshold: number;
 };
 
-export default class PlayerPowerChangePostFixtureCalculator
-  implements IPlayerPowerChangePostFixtureCalculator
+export default class PlayerPowerChangePostFixtureProcessor
+  implements IPlayerPowerChangePostFixtureProcessor
 {
   constructor(private readonly params: Params) {}
 
@@ -42,7 +42,7 @@ export default class PlayerPowerChangePostFixtureCalculator
     return player.power;
   }
 
-  calculate(player: IPlayer, playedTime: number, injuryPeriod: number = 0) {
+  calculateNewPower(player: IPlayer, playedTime: number, injuryPeriod: number = 0) {
     // Player did not play (either sit on the bench the whole match or was not selected)
     if (playedTime === 0) return this.notUsedPlayerCalculator(player);
 
