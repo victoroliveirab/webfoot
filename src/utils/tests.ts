@@ -124,7 +124,7 @@ expect.extend({
           return {
             pass: false,
             message: () =>
-              `Expected ${expected} (${frequency}) to be mode, but ${key} (${value}) is more frequent`,
+              `Expected ${expected} (${frequency}) to be mode, but ${key} (${value}) is more frequent. \n\n${stringifyMap(received)}\n`,
           };
         }
       }
