@@ -2,7 +2,6 @@ import { useContext, type Component, createSignal, For, Show, createEffect } fro
 import { useNavigate } from "@solidjs/router";
 
 import Clock from "@webfoot/components/Clock";
-import PostRoundProcessor from "@webfoot/core/engine/processors/post-round";
 
 import DivisionBlock from "./components/DivisionBlock";
 import ModalInjury from "./components/ModalInjury";
@@ -10,6 +9,8 @@ import ModalTeam from "./components/ModalTeam";
 import RoundProvider, { RoundContext } from "./contexts/round";
 import SimulationsProvider, { SimulationsContext } from "./contexts/simulations";
 import type { ModalInjuryInfo, ModalTeamInfo } from "./types";
+import { IFixture } from "@webfoot/core/models/types";
+import { updateStandings } from "./helpers";
 
 type HumanActionRequired =
   | {
@@ -31,7 +32,12 @@ const TIMEOUT = 1000 / FPS;
 const MatchDay: Component = () => {
   const navigate = useNavigate();
   const round = useContext(RoundContext);
-  const { ready: simulationsReady, simulations, triggerUpdate } = useContext(SimulationsContext);
+  const {
+    humanTrainerTeams,
+    ready: simulationsReady,
+    simulations,
+    triggerUpdate,
+  } = useContext(SimulationsContext);
 
   const [clock, setClock] = createSignal(0);
   const [timer, setTimer] = createSignal<number | null>(null);
@@ -45,7 +51,7 @@ const MatchDay: Component = () => {
 
   function tick() {
     const fixtureSimulations = Object.values(simulations());
-    const now = clock();
+    const now = clock() + 1;
     for (const simulation of fixtureSimulations) {
       const newSimulationState = simulation.tick();
       if (newSimulationState.newStories.length > 0) {
@@ -54,7 +60,7 @@ const MatchDay: Component = () => {
         );
         for (const story of storiesThatNeedIntervention) {
           const storyPlayerTeam = simulation.getPlayer(story.playerId)!.teamId;
-          const isTeamControlledByHuman = round().humanTrainerTeams!.includes(storyPlayerTeam);
+          const isTeamControlledByHuman = humanTrainerTeams.includes(storyPlayerTeam);
           if (!isTeamControlledByHuman) continue;
           switch (story.type) {
             case "REDCARD": {
@@ -90,7 +96,7 @@ const MatchDay: Component = () => {
         }
       }
     }
-    if (now >= 90) {
+    if (now > 90) {
       clearInterval(timer()!);
       // Probably a good idea dismiss this timeout if we click in a team and reset the timer
       setTimeout(finishRound, 2000);
@@ -98,8 +104,7 @@ const MatchDay: Component = () => {
     }
     if (now === 45) {
       clearInterval(timer()!);
-      const trainerTeams = round().humanTrainerTeams!;
-      for (const teamId of trainerTeams) {
+      for (const teamId of humanTrainerTeams) {
         const { fixture } = fixtureSimulations.find(
           (simulation) =>
             simulation.fixture.homeId === teamId || simulation.fixture.awayId === teamId,
@@ -117,11 +122,9 @@ const MatchDay: Component = () => {
     } else if (requireHumanActions.length > 0) {
       clearInterval(timer()!);
     }
-    if (requireHumanActions.length === 0) {
-      setClock(now + 1);
-      triggerUpdate();
-    } else {
-      triggerUpdate();
+    setClock(now);
+    triggerUpdate();
+    if (requireHumanActions.length > 0) {
       handlePlayerActionRequired();
     }
   }
@@ -150,7 +153,6 @@ const MatchDay: Component = () => {
     }
     if (clock() < 90) {
       setTimer(setInterval(tick, TIMEOUT));
-      setClock(clock() + 1);
     }
   }
 
@@ -162,14 +164,18 @@ const MatchDay: Component = () => {
     }
     if (clock() < 90) {
       setTimer(setInterval(tick, TIMEOUT));
-      setClock(clock() + 1);
     }
   }
 
   async function finishRound() {
     const simulationEntities = Object.values(simulations());
-    const processor = new PostRoundProcessor(simulationEntities);
-    await processor.process();
+    const fixtures: IFixture["id"][] = [];
+    for (const simulation of simulationEntities) {
+      await simulation.finish();
+      fixtures.push(simulation.fixture.id);
+    }
+    await updateStandings(fixtures);
+
     navigate("/standings");
   }
 
