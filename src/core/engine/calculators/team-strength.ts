@@ -1,73 +1,84 @@
-import type { IPlayer } from "@webfoot/core/models/types";
+import type { IPlayer, ITeam } from "@webfoot/core/models/types";
 
-import {
-  ADJUSTED_ATTACK_ATTACK_MODIFIER,
-  ADJUSTED_ATTACK_MIDFIELD_MODIFIER,
-  ADJUSTED_DEFENSE_DEFENSE_MODIFIER,
-  ADJUSTED_DEFENSE_MIDFIELD_MODIFIER,
-  ATTACKER_POWER_MULTIPLIER,
-  BASE_MORALE_EFFECT,
-  BASE_PLAYER_MULTIPLIER,
-  DEFENDER_POWER_MULTIPLIER,
-  GOALKEEPER_POWER_MULTIPLIER,
-  MIDFIELDER_POWER_MULTIPLIER,
-  MORALE_MULTIPLIER,
-  STAR_PLAYER_MULTIPLIER,
-} from "./constants";
+import type { ITeamStrengthCalculator } from "../interfaces";
 
-export default function calculateTeamStrength(squad: IPlayer[], morale: number) {
-  let attackStrength = 0;
-  let defenseStrength = 0;
-  let midfieldStrength = 0;
+type Params = {
+  /** How much an attacker's power influence on team's attack strength */
+  attackerPowerAttackMultiplier: number;
+  /** How much an attacker's power influence on team's defense strength */
+  attackerPowerDefenseMultiplier: number;
+  /** How much a midfield's power influence on team's attack strength */
+  midfielderPowerAttackMultiplier: number;
+  /** How much a midfield's power influence on team's defense strength */
+  midfielderPowerDefenseMultiplier: number;
+  /** How much a defender's power influence on team's attack strength */
+  defenderPowerAttackMultiplier: number;
+  /** How much a defender's power influence on team's defense strength */
+  defenderPowerDefenseMultiplier: number;
+  /** How much a goalkeeper's power influence on team's attack strength */
+  goalkeeperPowerAttackMultiplier: number;
+  /** How much a goalkeeper's power influence on team's defense strength */
+  goalkeeperPowerDefenseMultiplier: number;
+  /** How much a player not being a star influences a value (e.g. attack strength) */
+  nonStarMultiplier: number;
+  /** How much a player being a star influences a value (e.g. attack strength) */
+  starMultiplier: number;
 
-  squad.forEach((player) => {
-    const strengthModifier = player.star ? STAR_PLAYER_MULTIPLIER : BASE_PLAYER_MULTIPLIER;
-    switch (player.position) {
-      case "G": {
-        defenseStrength += player.power * GOALKEEPER_POWER_MULTIPLIER;
-        break;
+  /** Baseline value to morale factor */
+  baseMoraleEffect: number;
+  /** How much the team's current morale influence */
+  moraleMultiplier: number;
+};
+
+export default class TeamStrengthCalculator implements ITeamStrengthCalculator {
+  constructor(private readonly params: Params) {}
+
+  calculate(squad: IPlayer[], morale: ITeam["morale"]) {
+    let attackStrength = 0;
+    let defenseStrength = 0;
+    squad.forEach((player) => {
+      const starModifier = player.star ? this.params.starMultiplier : this.params.nonStarMultiplier;
+      switch (player.position) {
+        case "G": {
+          attackStrength +=
+            player.power * starModifier * this.params.goalkeeperPowerAttackMultiplier;
+          defenseStrength +=
+            player.power * starModifier * this.params.goalkeeperPowerDefenseMultiplier;
+          break;
+        }
+        case "D": {
+          attackStrength += player.power * starModifier * this.params.defenderPowerAttackMultiplier;
+          defenseStrength +=
+            player.power * starModifier * this.params.defenderPowerDefenseMultiplier;
+          break;
+        }
+        case "M": {
+          attackStrength +=
+            player.power * starModifier * this.params.midfielderPowerAttackMultiplier;
+          defenseStrength +=
+            player.power * starModifier * this.params.midfielderPowerDefenseMultiplier;
+          break;
+        }
+        case "A": {
+          attackStrength += player.power * starModifier * this.params.attackerPowerAttackMultiplier;
+          defenseStrength +=
+            player.power * starModifier * this.params.attackerPowerDefenseMultiplier;
+          break;
+        }
+        default: {
+          console.error({
+            squad,
+            player,
+            morale,
+          });
+        }
       }
-      case "D": {
-        defenseStrength += player.power * DEFENDER_POWER_MULTIPLIER;
-        break;
-      }
-      case "M": {
-        midfieldStrength += player.power * MIDFIELDER_POWER_MULTIPLIER * strengthModifier;
-        break;
-      }
+    });
+    const moraleFactor = this.params.baseMoraleEffect + this.params.moraleMultiplier * morale;
 
-      case "A": {
-        attackStrength += player.power * ATTACKER_POWER_MULTIPLIER * strengthModifier;
-        break;
-      }
-
-      default: {
-        console.error({
-          squad,
-          player,
-          morale,
-        });
-      }
-    }
-  });
-
-  const attackStrengthContributionToAttack = ADJUSTED_ATTACK_ATTACK_MODIFIER * attackStrength;
-  const midfieldStrenghContributionToAttack = ADJUSTED_ATTACK_MIDFIELD_MODIFIER * midfieldStrength;
-  const midfieldStrengthContributionToDefense =
-    ADJUSTED_DEFENSE_MIDFIELD_MODIFIER * midfieldStrength;
-  const defenseStrengthContributionToDefense = ADJUSTED_DEFENSE_DEFENSE_MODIFIER * defenseStrength;
-
-  const attackFactor = attackStrengthContributionToAttack + midfieldStrenghContributionToAttack;
-  const defenseFactor =
-    defenseStrengthContributionToDefense + midfieldStrengthContributionToDefense;
-
-  const moraleFactor = BASE_MORALE_EFFECT + morale * MORALE_MULTIPLIER;
-
-  const adjustedAttack = attackFactor * moraleFactor;
-  const adjustedDefense = defenseFactor * moraleFactor;
-
-  return {
-    attack: adjustedAttack,
-    defense: adjustedDefense,
-  };
+    return {
+      attack: attackStrength * moraleFactor,
+      defense: defenseStrength * moraleFactor,
+    };
+  }
 }
