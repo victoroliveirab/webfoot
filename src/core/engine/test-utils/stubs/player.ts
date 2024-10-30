@@ -1,11 +1,10 @@
 import type { IPlayer } from "@webfoot/core/models/types";
-import type { PatchObject } from "@webfoot/utils/types";
 
 export default class PlayerStub {
   instance: IPlayer;
-  constructor(params: PatchObject<IPlayer>) {
+  constructor(params: Partial<IPlayer>) {
     this.instance = {
-      id: params.id,
+      id: params.id ?? 0,
       available: params.available ?? true,
       discipline: params.discipline ?? 0,
       injuryPeriod: params.injuryPeriod ?? 0,

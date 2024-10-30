@@ -8,6 +8,8 @@ type Params = {
   injuryPronenessMultiplier: number;
   /** Player's past injuries influence on the injury time */
   previousInjuriesMultiplier: number;
+  /** Player's min number of injuries to cap factor to max value */
+  previousInjuriesCap: number;
   /** Match's time player got injured influence on the injury time */
   timeOfInjuryMultiplier: number;
   /** Max time a player can stay injured */
@@ -19,7 +21,10 @@ export default class InjuryStoryProcessor implements IInjuryStoryProcessor {
 
   calculateInjuryPeriod(player: IPlayer, matchTime: number) {
     const playerInjuryProneness = player.internal.injuryProneness;
-    const numberOfPreviousInjuries = player.stats.injuries;
+    const numberOfPreviousInjuries = Math.min(
+      player.stats.injuries,
+      this.params.previousInjuriesCap,
+    );
     const combinedFactor =
       playerInjuryProneness * this.params.injuryPronenessMultiplier +
       numberOfPreviousInjuries * this.params.previousInjuriesMultiplier +

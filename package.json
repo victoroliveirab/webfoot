@@ -9,7 +9,8 @@
     "serve": "vite preview",
     "lint": "eslint . --ignore-pattern \"*.config.js\"",
     "typecheck": "tsc --project tsconfig.json",
-    "test": "vitest"
+    "test": "vitest",
+    "test:bail": "vitest --bail 1"
   },
   "license": "MIT",
   "devDependencies": {
