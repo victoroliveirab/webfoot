@@ -3,6 +3,7 @@ import "vitest";
 interface CustomMatchers<R = unknown> {
   toBeNormallyDistributed: () => R;
   toHaveMode: (expected: number) => R;
+  toBeWithinRange: (expected: [number, number]) => R;
 }
 
 declare module "vitest" {

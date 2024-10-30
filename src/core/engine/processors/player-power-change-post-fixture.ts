@@ -12,6 +12,8 @@ type Params = {
   probabilityPlayerNotUsedIncreasePower: number;
   /** The maximum time a player can play in order to increase his power */
   increaseVsDecreaseTimeThreshold: number;
+  /** How much getting injured affects the amount of power decreasing */
+  powerDecreaseInjuryFactor: number;
 };
 
 export default class PlayerPowerChangePostFixtureProcessor
@@ -54,8 +56,10 @@ export default class PlayerPowerChangePostFixtureProcessor
     }
 
     // Player participated and got injured in the process
-    const randomFactor = normalRandomInt(3, 10);
-    const powerLoss = injuryPeriod * randomFactor;
+    const randomFactor = normalRandomInt(2, 9);
+    const powerLoss = Math.round(
+      this.params.powerDecreaseInjuryFactor * injuryPeriod * randomFactor,
+    );
     return clamp(player.power - powerLoss, 1, 50);
   }
 }

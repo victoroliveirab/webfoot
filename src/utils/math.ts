@@ -42,3 +42,13 @@ export function quadraticFunctionFactory(a: number, b: number, c: number) {
     return quadraticFunctionCalc(a, b, c, x);
   };
 }
+
+export function exponentialFunctionCalc(k: number, a: number, x: number) {
+  return k * Math.pow(Math.E, a * x);
+}
+
+export function exponentialFunctionFactory(k: number, a: number) {
+  return function calculate(x: number) {
+    return exponentialFunctionCalc(k, a, x);
+  };
+}

@@ -134,4 +134,14 @@ expect.extend({
       message: () => "",
     };
   },
+  toBeWithinRange(received: number, expected: [number, number]) {
+    const [target, range] = expected;
+    const minValue = target - range;
+    const maxValue = target + range;
+    return {
+      pass: received >= minValue && received <= maxValue,
+      message: () =>
+        `Expected ${received} to be between ${minValue} and ${maxValue} (${target} +/- ${range})`,
+    };
+  },
 });
