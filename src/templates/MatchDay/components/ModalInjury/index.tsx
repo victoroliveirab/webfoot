@@ -101,7 +101,7 @@ const ModalInjury = ({ info: infoIds, onClose }: Props) => {
                           {benchedPlayer.position}
                         </div>
                         <div role="cell" class="w-2/3">
-                          <p>
+                          <p class="text-nowrap overflow-x-clip">
                             {benchedPlayer.name} <span>{benchedPlayer.star ? "*" : ""}</span>
                           </p>
                         </div>
