@@ -9,11 +9,12 @@ import { arrayToHashMap } from "@webfoot/utils/array";
 import StandingLine from "../StandingLine";
 
 type Props = {
+  onClose?: () => unknown;
   onTeamClick?: (teamId: ITeam["id"]) => unknown;
   year: number;
 };
 
-const Standings = ({ onTeamClick, year }: Props) => {
+const Standings = ({ onTeamClick, onClose, year }: Props) => {
   const isDBReady = useDBReady();
   const [championships] = createResource(isDBReady, async () =>
     Championship.getMultipleByIndex("season", year),
@@ -41,7 +42,10 @@ const Standings = ({ onTeamClick, year }: Props) => {
   });
 
   return (
-    <div class="w-full h-full py-4 px-3 grid grid-cols-2 grid-rows-2 grid-flow-col gap-6 select-none bg-w3c-green">
+    <div
+      class="w-full h-full py-4 px-3 grid grid-cols-2 grid-rows-2 grid-flow-col gap-6 select-none bg-w3c-green"
+      onClick={onClose}
+    >
       <Show when={teams.state === "ready"}>
         <For each={standings()!}>
           {(division, index) => (

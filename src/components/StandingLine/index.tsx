@@ -28,7 +28,10 @@ const StandingLine = ({
       background={background}
       border={border}
       foreground={foreground}
-      onClick={() => onClick?.(data.teamId)}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(data.teamId);
+      }}
     >
       <p class="flex-grow uppercase text-nowrap">{data.teamName}</p>
       <div class="flex gap-3">

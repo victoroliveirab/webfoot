@@ -18,7 +18,11 @@ export default function ModalStandings() {
       class="w-[720px]"
       onClickClose={() => setModalStandingsOpened(false)}
     >
-      <Standings year={year} onTeamClick={(team) => setVisibleTeam(team)} />
+      <Standings
+        year={year}
+        onTeamClick={(team) => setVisibleTeam(team)}
+        onClose={() => setModalStandingsOpened(false)}
+      />
     </Layout>
   );
 }
