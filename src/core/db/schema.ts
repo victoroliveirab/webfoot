@@ -10,6 +10,7 @@ import {
   type TeamBudget,
   type Trainer,
 } from "./types";
+import type { Logger } from "../logger/logger";
 
 function createTable(db: IDBDatabase, tableName: TableName) {
   return db.createObjectStore(tableName, { autoIncrement: true, keyPath: "id" });
@@ -75,6 +76,11 @@ function createStandingsTable(db: IDBDatabase) {
   createIndex<Standing>(table, "teamId");
 }
 
+function createLogTable(db: IDBDatabase) {
+  const table = createTable(db, TABLE_NAMES.Logs);
+  createIndex<Logger>(table, "type");
+}
+
 export default function schema(db: IDBDatabase) {
   createLeaguesTable(db);
   createChampionshipsTable(db);
@@ -85,4 +91,5 @@ export default function schema(db: IDBDatabase) {
   createFixturesTable(db);
   createSimulationRecord(db);
   createStandingsTable(db);
+  createLogTable(db);
 }

@@ -38,10 +38,12 @@ const Home: Component = () => {
       navigate("/dashboard/1");
     } else if (radioChoice === "newgame") {
       const newSaveName = formData.get("newgame-name")?.toString();
+      const devModeEnabled = formData.get("dev-mode")?.toString() === "on";
       if (!newSaveName || saves()!.includes(newSaveName)) return;
       const year = new Date().getFullYear();
       navigate("/setup", {
         state: {
+          devMode: devModeEnabled,
           name: newSaveName,
           year,
         },
@@ -86,6 +88,12 @@ const Home: Component = () => {
                     class="style-98 flex-1 max-w-40"
                     disabled={!isNewGame()}
                   />
+                </div>
+                <div class="flex gap-1 justify-end">
+                  <input type="checkbox" name="dev-mode" id="dev-mode" disabled={!isNewGame()} />
+                  <label for="dev-mode" class="text-nowrap text-xs">
+                    Dev Mode
+                  </label>
                 </div>
               </fieldset>
               <fieldset class="flex-1">

@@ -1,4 +1,5 @@
 import type { Story } from "@webfoot/core/db/types";
+import Logger from "@webfoot/core/logger";
 import { Fixture, Player, Team, TeamBudget } from "@webfoot/core/models";
 import type { IFixture, IPlayer, ITeam } from "@webfoot/core/models/types";
 import { arrayToHashMap, pickRandom } from "@webfoot/utils/array";
@@ -588,11 +589,13 @@ class Simulator {
   protected async postFixturePreProcessFixtureOccurances() {
     const selectedPlayers = arrayToHashMap(this.players);
     const impactedPlayers = new Map<IPlayer["id"], PatchObject<IPlayer>>();
-    for (const { playerId, time, type } of this.occurances) {
+    for (const story of this.occurances) {
+      const { playerId, time, type } = story;
       if (!impactedPlayers.get(playerId)) {
         impactedPlayers.set(playerId, { id: playerId });
       }
       const obj = impactedPlayers.get(playerId)!;
+      await Logger.logSimulationStory(this, selectedPlayers[playerId], story);
       switch (type) {
         case "REDCARD": {
           const suspensionPeriod = this.processors.redCardStoryProcessor.calculateSuspensionPeriod(

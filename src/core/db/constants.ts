@@ -10,6 +10,7 @@ export const TABLE_NAMES = {
   Team: "teams",
   TeamBudget: "teamsBudgets",
   Trainer: "trainers",
+  Logs: "logs",
 } as const;
 
 export type TableName = (typeof TABLE_NAMES)[keyof typeof TABLE_NAMES];

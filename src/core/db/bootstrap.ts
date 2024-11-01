@@ -31,7 +31,12 @@ import type { Color } from "./types";
  * Receives the new save name and bootstraps the database and tables
  * Future implementations may receive the desired countries and leagues to load
  */
-export default async function bootstrap(saveName: string, startSeason: number, trainers: string[]) {
+export default async function bootstrap(
+  saveName: string,
+  startSeason: number,
+  trainers: string[],
+  devMode: boolean = false,
+) {
   const conn = await connect({
     name: saveName,
     initSchema: schema,
@@ -39,7 +44,7 @@ export default async function bootstrap(saveName: string, startSeason: number, t
 
   notifyORMs(conn);
   await initDB(startSeason, brazilianTeams(), trainers);
-  GameLoop.createSave(saveName, startSeason);
+  GameLoop.createSave(saveName, startSeason, devMode);
 }
 
 async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: string[]) {

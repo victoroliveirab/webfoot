@@ -1,4 +1,12 @@
-import { onMount, type Component, createSignal, createResource } from "solid-js";
+import {
+  onMount,
+  type Component,
+  createSignal,
+  createResource,
+  createEffect,
+  Switch,
+  Match,
+} from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
 
 import Button from "@webfoot/components/Button";
@@ -11,6 +19,7 @@ import useSimulateSeason from "@webfoot/hooks/useSimulateSeason";
 const MAX_NUMBER_OF_PLAYERS = 6;
 
 type LocationState = {
+  devMode: boolean;
   name: string;
   year: number;
 };
@@ -52,7 +61,7 @@ const Setup: Component = () => {
         break;
       }
     }
-    await bootstrap(saveName, startSeason, [name]);
+    await bootstrap(saveName, startSeason, [name], state?.devMode);
     setLoadTeam(true);
     setUiState("submit");
   }
@@ -67,24 +76,25 @@ const Setup: Component = () => {
       title={() => "Jogadores"}
       actions={
         <div class="flex gap-4 mt-4">
-          <Button
-            class="style-98 default h-16 px-4 w-auto font-bold"
-            onClick={uiState() === "create-trainer" ? submitCreation : submitStartGame}
-          >
-            {uiState() === "create-trainer" ? "Sortear Equipas" : "Jogar"}
-          </Button>
-          {uiState() === "submit" && (
-            <Button class="style-98 default h-16 px-4 w-auto font-bold" onClick={simulateSeason}>
-              Simulate Season
-            </Button>
-          )}
+          <Switch>
+            <Match when={uiState() === "create-trainer"}>
+              <Button class="style-98 default h-16 px-4 w-32 font-bold" onClick={submitCreation}>
+                Sortear Equipas
+              </Button>
+            </Match>
+            <Match when={uiState() === "submit"}>
+              <Button class="style-98 default h-16 px-4 w-32 font-bold" onClick={submitStartGame}>
+                Jogar
+              </Button>
+              <Button class="style-98 default h-16 px-4 w-32 font-bold" onClick={simulateSeason}>
+                Simulate Season
+              </Button>
+            </Match>
+          </Switch>
         </div>
       }
     >
-      <div
-        role="table"
-        class="h-full mx-2 mt-2 px-2 py-4 flex flex-col gap-2 border border-black text-sm"
-      >
+      <div role="table" class="mx-2 mt-2 px-2 py-4 flex flex-col gap-2 border border-black text-sm">
         <div role="row" class="flex items-center gap-4">
           <p role="cell" class="w-16"></p>
           <h2 role="cell" class="w-32">

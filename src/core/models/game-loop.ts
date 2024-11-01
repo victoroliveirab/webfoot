@@ -1,4 +1,5 @@
 type BookkeeperRecord = {
+  devMode: boolean;
   season: number;
   week: number;
 };
@@ -28,6 +29,14 @@ export default class GameLoop {
     localStorage.setItem("week", String(week));
   }
 
+  static getDevMode() {
+    const value = localStorage.getItem("dev-mode");
+    return value ? value === "true" : false;
+  }
+  private static setDevMode(devMode: boolean | string) {
+    localStorage.setItem("dev-mode", String(devMode));
+  }
+
   static getMaxNumberOfScorers() {
     // FIXME: this can be a problem when a save is started in 2024 and loaded in 2025
     const season = Math.max(this.getYear()! - new Date().getFullYear() + 1, 1);
@@ -50,14 +59,16 @@ export default class GameLoop {
     window.localStorage.setItem("record", JSON.stringify(record));
   }
 
-  static createSave(name: string, year: number) {
+  static createSave(name: string, year: number, devMode: boolean) {
     const record = this.getRecord();
     if (record[name]) throw new Error(`There is already a save called ${name}`);
     record[name] = {
+      devMode,
       season: year,
       week: 1,
     };
     this.setRecord(record);
+    this.setDevMode(devMode);
     this.setCurrentSave(name);
     this.setYear(year);
     this.setWeek(1);
@@ -67,6 +78,7 @@ export default class GameLoop {
     const record = this.getRecord();
     if (!record[name]) throw new Error(`There is no save file called ${name}`);
     this.setCurrentSave(name);
+    this.setDevMode(record[name].devMode);
     this.setYear(record[name].season);
     this.setWeek(record[name].week);
   }
@@ -76,6 +88,7 @@ export default class GameLoop {
     if (!currentSave) throw new Error(`${currentSave} appears to be corrupted`);
     const record = this.getRecord();
     record[currentSave] = {
+      devMode: this.getDevMode(),
       season: this.getYear()!,
       week: this.getWeek()!,
     };
@@ -84,6 +97,7 @@ export default class GameLoop {
 
   static unloadSave() {
     this.setCurrentSave("");
+    this.setDevMode("");
     this.setYear("");
     this.setWeek("");
   }

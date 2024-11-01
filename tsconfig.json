@@ -25,6 +25,9 @@
       "@webfoot/hooks/*": [
         "./src/hooks/*"
       ],
+      "@webfoot/logger": [
+        "./src/core/logger/index.ts"
+      ],
       "@webfoot/models": [
         "./src/core/models/index.ts"
       ],
