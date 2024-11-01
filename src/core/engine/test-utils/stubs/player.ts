@@ -2,7 +2,7 @@ import type { IPlayer } from "@webfoot/core/models/types";
 
 export default class PlayerStub {
   instance: IPlayer;
-  constructor(params: Partial<IPlayer>) {
+  constructor(params: Partial<IPlayer> = {}) {
     this.instance = {
       id: params.id ?? 0,
       available: params.available ?? true,
