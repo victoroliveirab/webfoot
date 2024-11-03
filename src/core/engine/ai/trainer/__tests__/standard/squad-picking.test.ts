@@ -1,6 +1,7 @@
-import { IPlayer } from "@webfoot/core/models/types";
-import StandardAITrainer from "../../standard";
 import PlayerStub from "@webfoot/core/engine/test-utils/stubs/player";
+import type { IPlayer } from "@webfoot/core/models/types";
+
+import StandardAITrainer from "../../standard";
 
 const playersStats: Array<[IPlayer["position"], IPlayer["power"], IPlayer["star"]]> = [
   ["G", 5, false], // A, 1
