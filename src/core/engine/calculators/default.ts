@@ -11,7 +11,7 @@ import {
   INJURY_BASELINE,
   INJURY_MAX_PROBABILITY,
   INJURY_NON_STAR_MULTIPLIER,
-  INJURY_PRONENESS_MULTIPLIER,
+  INJURY_PRONENESS_SLOPE,
   INJURY_STAR_MULTIPLIER,
   MIDFIELDER_GOAL_MULTIPLIER,
   MIDFIELDER_POWER_MULTIPLIER,
@@ -51,7 +51,7 @@ const injuryCalculator = new InjuryCalculator({
   maxInjuryProbability: INJURY_MAX_PROBABILITY,
   pastInjuryMultiplier: PREVIOUS_INJURIES_FACTOR_MULTIPLIER,
   injuryProbabilityBaseline: INJURY_BASELINE,
-  injuryPronenessMultiplier: INJURY_PRONENESS_MULTIPLIER,
+  injuryPronenessSlope: INJURY_PRONENESS_SLOPE,
 });
 
 const redcardCalculator = new RedCardCalculator({
