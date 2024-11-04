@@ -13,6 +13,7 @@ import {
   INITIAL_TICKET_PRICE_BY_DIVISION,
   TEAMS_PER_DIVISION,
 } from "./constants";
+import Logger from "../logger";
 import {
   Championship,
   Fixture,
@@ -24,7 +25,7 @@ import {
   TeamBudget,
   Trainer,
 } from "../models";
-import type { IChampionship, IPlayer, IStanding, ITeam } from "../models/types";
+import type { IChampionship, IPlayer, IStanding, ITeam, ITrainer } from "../models/types";
 import type { Color } from "./types";
 
 /**
@@ -34,7 +35,7 @@ import type { Color } from "./types";
 export default async function bootstrap(
   saveName: string,
   startSeason: number,
-  trainers: string[],
+  trainerName: string,
   devMode: boolean = false,
 ) {
   const conn = await connect({
@@ -43,11 +44,12 @@ export default async function bootstrap(
   });
 
   notifyORMs(conn);
-  await initDB(startSeason, brazilianTeams(), trainers);
+  Logger.setEnabled(devMode);
+  await initDB(startSeason, brazilianTeams(), trainerName);
   GameLoop.createSave(saveName, startSeason, devMode);
 }
 
-async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: string[]) {
+async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainerName: string) {
   // 1- Create divisions
   const divisionsIds: number[] = [];
   for (let division = 1; division <= 4; ++division) {
@@ -178,6 +180,7 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
     const numberOfPlayers = normalRandomInt(14, 20);
     const playerDistribution = positionDistribution(numberOfPlayers);
     const positions: IPlayer["position"][] = ["G", "D", "M", "A"];
+    const teamPlayers: IPlayer[] = [];
     for (let positionIndex = 0; positionIndex < positions.length; ++positionIndex) {
       for (let qty = 0; qty < playerDistribution[positionIndex]; ++qty) {
         const position = positions[positionIndex];
@@ -203,40 +206,62 @@ async function initDB(startSeason: number, selectedTeams: TeamSeed[], trainers: 
           injuryPeriod: 0,
         };
         const playerId = await Player.add(player);
-        players.push({
+        const newPlayer = {
           ...player,
           id: playerId,
-        });
+        };
+        teamPlayers.push(newPlayer);
+        players.push(newPlayer);
       }
     }
+    await Logger.logSquadCreation(teamId, teamPlayers);
   }
 
   // 5- Create trainers
   let availableTeams = shuffle(teams.filter((team) => team.championshipId === 4));
-  const teamsTaken: ITeam["id"][] = [];
-  for (const trainer of trainers) {
-    const team = availableTeams.pop()!;
-    await Trainer.add({
-      teamId: team.id,
-      human: true,
-      name: trainer,
-      history: [
-        {
-          description: `Ingresso no ${team.name.toUpperCase()}`,
-          season: startSeason,
-          teamId: team.id,
-          type: "join",
-        },
-      ],
-    });
-  }
+  const trainerTeam = availableTeams.pop()!;
+  const trainer: Omit<ITrainer, "id"> = {
+    teamId: trainerTeam.id,
+    human: true,
+    aiStrategy: null,
+    name: trainerName,
+    history: [
+      {
+        description: `Ingresso no ${trainerTeam.name.toUpperCase()}`,
+        season: startSeason,
+        teamId: trainerTeam.id,
+        type: "join",
+      },
+    ],
+  };
+  const trainerId = await Trainer.add(trainer);
+  await Logger.logTrainerCreation({
+    id: trainerId,
+    ...trainer,
+  });
   for (const team of teams) {
     const entry = scaledTeams.find(({ fullname }) => team.fullname === fullname)!;
-    await Trainer.add({
-      teamId: teamsTaken.includes(team.id) ? null : team.id,
+    const teamId = trainerTeam.id === team.id ? null : team.id;
+    const trainerData: Omit<ITrainer, "id"> = {
+      teamId,
       human: false,
+      aiStrategy: "Standard",
       name: entry.trainer,
-      history: [],
+      history: teamId
+        ? [
+            {
+              description: `Ingresso no ${team.name.toUpperCase()}`,
+              season: startSeason,
+              teamId,
+              type: "join",
+            },
+          ]
+        : [],
+    };
+    const trainerId = await Trainer.add(trainerData);
+    await Logger.logTrainerCreation({
+      id: trainerId,
+      ...trainerData,
     });
   }
 

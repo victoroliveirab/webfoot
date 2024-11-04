@@ -63,7 +63,7 @@ export const FIXTURES_8_TEAMS = [
 ];
 
 export const INITIAL_STADIUM_CAPACITY_BY_DIVISION = [60_000, 45_000, 30_000, 15_000, 10_000];
-export const INITIAL_TICKET_PRICE_BY_DIVISION = [40, 25, 15, 8, 5];
+export const INITIAL_TICKET_PRICE_BY_DIVISION = [44, 32, 18, 8, 5];
 
 export const DISCIPLINES_MAP: Record<Player["type"]["discipline"], string> = {
   0: "Sarrafeiro",

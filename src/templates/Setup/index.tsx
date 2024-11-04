@@ -1,12 +1,4 @@
-import {
-  onMount,
-  type Component,
-  createSignal,
-  createResource,
-  createEffect,
-  Switch,
-  Match,
-} from "solid-js";
+import { onMount, type Component, createSignal, createResource, Switch, Match } from "solid-js";
 import { useLocation, useNavigate } from "@solidjs/router";
 
 import Button from "@webfoot/components/Button";
@@ -15,8 +7,6 @@ import TeamBlock from "@webfoot/components/TeamBlock";
 import bootstrap from "@webfoot/core/db/bootstrap";
 import { GameLoop, Team, Trainer } from "@webfoot/core/models";
 import useSimulateSeason from "@webfoot/hooks/useSimulateSeason";
-
-const MAX_NUMBER_OF_PLAYERS = 6;
 
 type LocationState = {
   devMode: boolean;
@@ -52,16 +42,10 @@ const Setup: Component = () => {
   });
 
   async function submitCreation() {
-    const elements = document.querySelectorAll<HTMLInputElement>("input[type='text']");
-    // For now, let's just create one trainer
-    let name = "TRAINER";
-    for (const input of elements) {
-      if (input.value) {
-        name = input.value.trim().toUpperCase();
-        break;
-      }
-    }
-    await bootstrap(saveName, startSeason, [name], state?.devMode);
+    const element = document.querySelector<HTMLInputElement>("input[name='player']");
+    if (!element) return;
+    const name = element.value.trim();
+    await bootstrap(saveName, startSeason, name, state?.devMode);
     setLoadTeam(true);
     setUiState("submit");
   }
@@ -102,29 +86,27 @@ const Setup: Component = () => {
           </h2>
           <h2 role="cell">Equipa</h2>
         </div>
-        {Array.from({ length: MAX_NUMBER_OF_PLAYERS }).map((_, i) => (
-          <div role="row" class="flex items-center gap-4">
-            <p role="cell" class="w-16">
-              Jogador {i + 1}
-            </p>
-            <div role="cell" class="w-32">
-              <input
-                type="text"
-                class="style-98 w-full focus:!bg-w3c-yellow uppercase"
-                id={`player-${i}`}
-                name={`player-${i}`}
-                value={i === 0 ? "Victor" : ""}
-              />
-            </div>
-            <div role="cell" class="flex-1">
-              {i === 0 && team.state === "ready" && (
-                <TeamBlock background={team().background} foreground={team().foreground}>
-                  {team().name}
-                </TeamBlock>
-              )}
-            </div>
+        <div role="row" class="flex items-center gap-4">
+          <p role="cell" class="w-16">
+            Jogador
+          </p>
+          <div role="cell" class="w-32">
+            <input
+              type="text"
+              class="style-98 w-full focus:!bg-w3c-yellow"
+              id="player"
+              name="player"
+              value="player"
+            />
           </div>
-        ))}
+          <div role="cell" class="flex-1">
+            {team.state === "ready" && (
+              <TeamBlock background={team().background} foreground={team().foreground}>
+                {team().name}
+              </TeamBlock>
+            )}
+          </div>
+        </div>
       </div>
     </Layout>
   );

@@ -1,6 +1,7 @@
 import { type Component, useContext, Show } from "solid-js";
 
 import Layout from "@webfoot/components/Layout";
+import useDevModeUI from "@webfoot/hooks/useDevModeUI";
 
 import DashboardTableOfPlayers from "./components/TableOfPlayers";
 import Grid from "./components/Grid";
@@ -16,6 +17,7 @@ import LayoutProvider from "./contexts/layout";
 const Dashboard: Component = () => {
   const club = useContext(ClubContext);
   const fixture = useContext(FixtureContext);
+  useDevModeUI();
 
   const ready = () => club().ready && fixture().ready;
 

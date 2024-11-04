@@ -1,3 +1,5 @@
+import { AITrainerStrategy } from "../engine/types";
+
 type ID = number;
 type IDHash = `${ID}-${ID}`;
 
@@ -105,6 +107,7 @@ export type Trainer = ORMBlueprint<
       type: "join" | "promotion" | "relegation" | "title";
     }[];
     human: boolean;
+    aiStrategy: AITrainerStrategy | null;
   },
   "human" | "teamId"
 >;

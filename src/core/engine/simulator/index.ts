@@ -581,6 +581,7 @@ class Simulator {
       // Something in the player changed
       if (patchObj.id > 0) {
         await Player.patch(patchObj);
+        await Logger.logPlayerChanged(player, patchObj);
         patchObj.id = 0;
       }
     }
@@ -659,7 +660,7 @@ class Simulator {
         playedTime,
         newInjuryPeriod,
       );
-      await Player.patch({
+      const patchObj: PatchObject<IPlayer> = {
         id: player.id,
         stats: {
           seasonGoals: newSeasonGoals,
@@ -671,7 +672,9 @@ class Simulator {
         injuryPeriod: newInjuryPeriod,
         suspensionPeriod: newSuspensionPeriod,
         power: newPower,
-      });
+      };
+      await Player.patch(patchObj);
+      await Logger.logPlayerChanged(player, patchObj);
     }
   }
 
