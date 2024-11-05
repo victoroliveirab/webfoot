@@ -1,11 +1,8 @@
-import type { IPlayer } from "@webfoot/core/models/types";
+import type { IFixture, IPlayer } from "@webfoot/core/models/types";
 import { randomInt } from "@webfoot/utils/math";
 
 import { playerSorterByPower } from "../sorters/player";
 
-/**
- * @deprecated create it inside the AI Trainers (also put it in the abstract class contract)
- */
 export function pickSquadRandomly(players: IPlayer[]) {
   const squad = new Set<number>();
   while (squad.size < 10) {
@@ -73,12 +70,10 @@ export function pickBestAvailable(players: IPlayer[]) {
   };
 }
 
-/**
- * FIXME: this function always assumes there are at least 16 available players
- */
 export function pickSquadByFormation(
   players: IPlayer[],
   formation: string | Record<IPlayer["position"], number>,
+  benchSize: IFixture["benchSize"],
 ) {
   const playersNeededByPosition: Record<IPlayer["position"], number> = (() => {
     if (typeof formation === "string") {
@@ -108,12 +103,20 @@ export function pickSquadByFormation(
     (id) => players.find(({ id: playerId }) => playerId === id)!,
   );
   const substitutes: IPlayer[] = [];
-  while (substitutes.length < 5) {
-    const playerIndex = randomInt(0, players.length);
-    const player = players[playerIndex];
-    if (!squad.has(player.id)) {
-      squad.add(player.id);
-      substitutes.push(player);
+  if (squad.size + benchSize >= players.length) {
+    for (const player of players) {
+      if (!squad.has(player.id)) {
+        substitutes.push(player);
+      }
+    }
+  } else {
+    while (substitutes.length < benchSize) {
+      const playerIndex = randomInt(0, players.length);
+      const player = players[playerIndex];
+      if (!squad.has(player.id)) {
+        squad.add(player.id);
+        substitutes.push(player);
+      }
     }
   }
   return {

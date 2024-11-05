@@ -9,11 +9,13 @@ import {
 
 import { formations } from "../../constants";
 import { ClubContext } from "../../contexts/club";
+import { FixtureContext } from "../../contexts/fixture";
 import { LayoutContext } from "../../contexts/layout";
 
 // REFACTOR: refactor so we can attach the shortcuts to the DOM
 export default function useFormationsOptions() {
   const club = useContext(ClubContext);
+  const fixture = useContext(FixtureContext);
   const {
     handlers: { setSelectedPlayers, setVisibleTab },
   } = useContext(LayoutContext);
@@ -57,7 +59,11 @@ export default function useFormationsOptions() {
             M: mQuantity,
             A: aQuantity,
           };
-          const squad = pickSquadByFormation(players, formationDistribution);
+          const squad = pickSquadByFormation(
+            players,
+            formationDistribution,
+            fixture().fixture?.benchSize ?? 0,
+          );
           setSelectedPlayers(squad);
           setVisibleTab("Selection");
         },
